@@ -40,7 +40,8 @@ async def get_all_events(
     interest: str = "",
     min_price: float = 0,
     max_price: float = 1500,
-    radius: float = 100
+    radius: float = 100,
+    sort_by: str = "title"  # New: sort_by param
 ):
     """
     Fetch and filter events based on:
@@ -88,11 +89,19 @@ async def get_all_events(
 
         filtered = list(filter(event_matches, combined))
 
-        # Sort by title for now (can update to sort by price/date later)
-        filtered.sort(key=lambda e: e.title.lower())
-
+        # Sort dynamically
+        if sort_by == "price":
+            def price_value(event):
+                try:
+                    return float(event.price.strip("$")) if event.price and "$" in event.price else float('inf')
+                except:
+                    return float('inf')
+            filtered.sort(key=price_value)
+        else:
+            filtered.sort(key=lambda e: e.title.lower())
+        
         return filtered
-
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

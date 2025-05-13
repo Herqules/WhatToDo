@@ -14,6 +14,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String city = '';
   List<String> selectedInterests = [];
   List<Event> events = [];
+  String _sortBy = 'title';
+  final List<String> _sortOptions = ['title', 'price'];
   bool isLoading = false;
   String? error;
 
@@ -75,6 +77,25 @@ void _onSearch() async {
             InterestPicker(
               onSelectionChanged: (interests) => selectedInterests = interests,
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: DropdownButton<String>(
+                value: _sortBy,
+                underline: SizedBox(), // removes the default blue underline
+                items: _sortOptions.map((option) {
+                  return DropdownMenuItem(
+                    value: option,
+                    child: Text('Sort by ${option[0].toUpperCase()}${option.substring(1)}'),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _sortBy = value!;
+                  });
+              },
+              ),
+            ),
+            const SizedBox(height: 12),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _onSearch,
