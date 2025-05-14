@@ -35,29 +35,25 @@ async def fetch_eventbrite_events(location: str, query: str = "") -> List[Normal
     normalized = []
     for event in data:
         venue = event.get("venue", {})
-    address = venue.get("address", {}).get("localized_address_display", "Unknown Location")
+        address = venue.get("address", {}).get("localized_address_display", "Unknown Location")
+        latitude = venue.get("latitude")
+        longitude = venue.get("longitude")
 
-    # Determine latitude/longitude
-    latitude = venue.get("latitude")
-    longitude = venue.get("longitude")
-
-    # Determine price string
-    if event.get("is_free"):
-        price = "Free"
-    elif event.get("is_free") is False:
-        price = "Paid"
-    else:
-        price = "Varies by ticket package"
-
+        if event.get("is_free"):
+            price = "Free"
+        elif event.get("is_free") is False:
+            price = "Paid"
+        else:
+            price = "Varies by ticket package"
 
         normalized.append(NormalizedEvent(
             title=event.get("name", {}).get("text", "No title"),
             description=event.get("description", {}).get("text", "No description"),
-            location=event.get("venue", {}).get("address", {}).get("localized_address_display", "Unknown Location"),
-            price="Free" if event.get("is_free") else "Paid",
+            location=address,
+            price=price,
             ticket_url=event.get("url", ""),
             source="Eventbrite",
-            latitude=str(event.get("venue", {}).get("latitude")),
-            longitude=str(event.get("venue", {}).get("longitude")),
+            latitude=str(latitude) if latitude else None,
+            longitude=str(longitude) if longitude else None,
         ))
-    return normalized
+        return normalized
