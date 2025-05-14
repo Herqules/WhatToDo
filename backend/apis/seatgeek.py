@@ -49,12 +49,15 @@ async def fetch_seatgeek_events(location: str, query: str = "") -> List[Normaliz
             price = f"Starting at ${min_price}"
         else:
             price = "Varies by ticket package"
-
+        
+        date = e.get("start", {}).get("local", "").split("T")[0]
+        
         normalized_events.append(NormalizedEvent(
             title=e.get("title", "No Title"),
             description=e.get("description") or "No description provided.",
             location=venue.get("display_location", "Unknown"),
             price=price,
+            date=date,
             ticket_url=e.get("url"),
             source="SeatGeek",
             latitude=str(latitude) if latitude else None,

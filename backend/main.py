@@ -9,6 +9,8 @@ from backend.apis.eventbrite import fetch_eventbrite_events
 from geopy.distance import geodesic
 from backend.utils.env import get_coordinates_for_city
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -37,7 +39,8 @@ async def get_all_events(
     min_price: float = 0,
     max_price: float = 1500,
     radius: float = 100,
-    sort_by: str = "title"
+    sort_by: str = "title",
+    date: str = ""
 ):
     try:
         # Get city coordinates
@@ -72,12 +75,13 @@ async def get_all_events(
 
         # Apply filters
         def event_matches(event: NormalizedEvent):
+            # ---- Price Filter ----
             try:
                 price_val = float(event.price.strip("$")) if event.price and "$" in event.price else 0
             except:
                 price_val = 0
             price_ok = min_price <= price_val <= max_price
-
+            # ---- Distance Filter ----
             if event.latitude and event.longitude:
                 try:
                     event_coords = (float(event.latitude), float(event.longitude))
@@ -87,8 +91,19 @@ async def get_all_events(
                     distance_ok = False
             else:
                 distance_ok = False
+            
+            # ---- Date Filter ----
+            date_ok = True
+            if date:
+                try:
+                    user_date = datetime.strptime(date, "%Y-%m-%d").date()
+                    event_date = datetime.strptime(event.date, "%Y-%m-%d").date()
+                    date_ok = event_date == user_date
+                except:
+                    date_ok = False
 
-            return price_ok and distance_ok
+            # date_ok = event.date == date if date else True
+            return price_ok and distance_ok and date_ok
 
         filtered = list(filter(event_matches, unique_events))
 

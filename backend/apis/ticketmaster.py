@@ -46,11 +46,13 @@ async def fetch_ticketmaster_events(location: str, query: str = "") -> List[Norm
         else:
             price = "Varies by ticket package"
 
+        date = e.get("start", {}).get("localDate", "").split("T")[0]
         normalized_events.append(NormalizedEvent(
             title=e.get("name", "No Title"),
             description=e.get("info", "No description available."),
             location=venue.get("city", {}).get("name", "Unknown"),
             price=price,
+            date = date,
             ticket_url=e.get("url"),
             source="Ticketmaster",
             latitude=latitude,

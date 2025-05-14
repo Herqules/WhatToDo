@@ -12,6 +12,7 @@ class ApiService {
     double maxPrice = 1500,
     double radius = 100,
     String sortBy = 'title',
+    DateTime? date,
   }) async {
     final interestQuery = (interests != null && interests.isNotEmpty)
         ? interests.join(" ")

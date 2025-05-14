@@ -46,11 +46,13 @@ async def fetch_eventbrite_events(location: str, query: str = "") -> List[Normal
         else:
             price = "Varies by ticket package"
 
+        date = event.get("start", {}).get("local", "").split("T")[0]
         normalized.append(NormalizedEvent(
             title=event.get("name", {}).get("text", "No title"),
             description=event.get("description", {}).get("text", "No description"),
             location=address,
             price=price,
+            date=date,
             ticket_url=event.get("url", ""),
             source="Eventbrite",
             latitude=str(latitude) if latitude else None,

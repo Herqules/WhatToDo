@@ -15,3 +15,4 @@ class NormalizedEvent(BaseModel):
     source: str
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    date: Optional[str]  # Fromat: YYYY-MM-DD

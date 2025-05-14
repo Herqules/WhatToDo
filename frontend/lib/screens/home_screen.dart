@@ -18,6 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _sortBy = 'title';
   bool isLoading = false;
   String? error;
+  DateTime? selectedDate;
 
 void _onSearch() async {
   if (city.trim().isEmpty) {
@@ -41,6 +42,7 @@ void _onSearch() async {
       maxPrice: 1500,
       radius: 100,
       sortBy: _sortBy,
+      date: selectedDate,
     );
     setState(() {
       events = result;
@@ -78,6 +80,36 @@ void _onSearch() async {
             InterestPicker(
               onSelectionChanged: (interests) => selectedInterests = interests,
             ),
+            
+            // ----- Logic for Date picking UI -----
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  selectedDate == null
+                      ? 'No date selected'
+                      : 'Selected: ${selectedDate!.toLocal().toString().split(' ')[0]}',
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null && picked != selectedDate) {
+                      setState(() {
+                        selectedDate = picked;
+                      });
+                    }
+                  },
+                  child: const Text('Pick a Date'),
+                ),
+              ],
+            ),
+
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: DropdownButton<String>(
