@@ -37,11 +37,20 @@ async def fetch_ticketmaster_events(location: str, query: str = "") -> List[Norm
         latitude = float(location_data.get("latitude", 0)) if location_data.get("latitude") else None
         longitude = float(location_data.get("longitude", 0)) if location_data.get("longitude") else None
 
+        # Price filtering logic, Take Max and Min and return a range or say Varies
+        price_data = e.get("priceRanges", [{}])[0]
+        min_price = price_data.get("min")
+        max_price = price_data.get("max")
+        if min_price and max_price:
+            price = f"${min_price} - ${max_price}"
+        else:
+            price = "Varies by ticket package"
+
         normalized_events.append(NormalizedEvent(
             title=e.get("name", "No Title"),
             description=e.get("info", "No description available."),
             location=venue.get("city", {}).get("name", "Unknown"),
-            price=f"${e.get('priceRanges', [{}])[0].get('min', 'N/A')}" if e.get("priceRanges") else "N/A",
+            price=price,
             ticket_url=e.get("url"),
             source="Ticketmaster",
             latitude=latitude,

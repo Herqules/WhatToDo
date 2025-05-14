@@ -34,6 +34,22 @@ async def fetch_eventbrite_events(location: str, query: str = "") -> List[Normal
 
     normalized = []
     for event in data:
+        venue = event.get("venue", {})
+    address = venue.get("address", {}).get("localized_address_display", "Unknown Location")
+
+    # Determine latitude/longitude
+    latitude = venue.get("latitude")
+    longitude = venue.get("longitude")
+
+    # Determine price string
+    if event.get("is_free"):
+        price = "Free"
+    elif event.get("is_free") is False:
+        price = "Paid"
+    else:
+        price = "Varies by ticket package"
+
+
         normalized.append(NormalizedEvent(
             title=event.get("name", {}).get("text", "No title"),
             description=event.get("description", {}).get("text", "No description"),
