@@ -92,17 +92,17 @@ async def get_all_events(
 
         filtered = list(filter(event_matches, unique_events))
 
-        # Sort by user preference
-        if sort_by == "price":
+        # Sort dynamically based on user preference
+        if "price" in sort_by:
             def price_value(event):
                 try:
                     return float(event.price.strip("$")) if event.price and "$" in event.price else float('inf')
                 except:
                     return float('inf')
-            filtered.sort(key=price_value)
+            filtered.sort(key=price_value, reverse="desc" in sort_by)
         else:
             filtered.sort(key=lambda e: e.title.lower())
-
+        
         return filtered
 
     except Exception as e:

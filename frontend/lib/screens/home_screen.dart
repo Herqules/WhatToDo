@@ -14,8 +14,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String city = '';
   List<String> selectedInterests = [];
   List<Event> events = [];
+  final List<String> _sortOptions = ['title', 'price-asc', 'price-desc'];
   String _sortBy = 'title';
-  final List<String> _sortOptions = ['title', 'price'];
   bool isLoading = false;
   String? error;
 
@@ -40,6 +40,7 @@ void _onSearch() async {
       minPrice: 0,
       maxPrice: 1500,
       radius: 100,
+      sortBy: _sortBy,
     );
     setState(() {
       events = result;
@@ -85,7 +86,13 @@ void _onSearch() async {
                 items: _sortOptions.map((option) {
                   return DropdownMenuItem(
                     value: option,
-                    child: Text('Sort by ${option[0].toUpperCase()}${option.substring(1)}'),
+                    child: Text(
+                    option == 'price-asc'
+                      ? 'Price (Low → High)'
+                      : option == 'price-desc'
+                        ? 'Price (High → Low)'
+                        : 'Title (A → Z)'
+                  ),
                   );
                 }).toList(),
                 onChanged: (value) {
