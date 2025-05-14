@@ -30,23 +30,18 @@ async def fetch_eventbrite_events(location: str, query: str = "") -> List[Normal
     if response.status_code != 200:
         raise Exception(f"Eventbrite API error: {response.text}")
 
-    raw_events = response.json().get("events", [])
+    data = response.json().get("events", [])
 
     normalized = []
-    for e in raw_events:
-        venue = e.get("venue", {})
-        lat = float(venue.get("latitude")) if venue.get("latitude") else None
-        lon = float(venue.get("longitude")) if venue.get("longitude") else None
-
+    for event in data:
         normalized.append(NormalizedEvent(
-            title=e.get("name", {}).get("text", "No Title"),
-            description=e.get("description", {}).get("text", "No description."),
-            location=venue.get("address", {}).get("localized_address_display", "Unknown"),
-            price="Free" if e.get("is_free") else "Paid",
-            ticket_url=e.get("url"),
+            title=event.get("name", {}).get("text", "No title"),
+            description=event.get("description", {}).get("text", "No description"),
+            location=event.get("venue", {}).get("address", {}).get("localized_address_display", "Unknown Location"),
+            price="Free" if event.get("is_free") else "Paid",
+            ticket_url=event.get("url", ""),
             source="Eventbrite",
-            latitude=lat,
-            longitude=lon
+            latitude=str(event.get("venue", {}).get("latitude")),
+            longitude=str(event.get("venue", {}).get("longitude")),
         ))
-
     return normalized

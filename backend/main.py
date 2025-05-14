@@ -10,13 +10,10 @@ from geopy.distance import geodesic
 from backend.utils.env import get_coordinates_for_city
 from fastapi.middleware.cors import CORSMiddleware
 
-
-
-
 # Load environment variables from .env file
 load_dotenv()
 
-# Initialize FastAPI app first
+# Initialize FastAPI app
 app = FastAPI(
     title="WhatToDo",
     description="Unified API for discovering events across platforms."
@@ -24,12 +21,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this in production
+    allow_origins=["*"],  # Update in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # ----------------------------
 # Unified Endpoint for All Providers
@@ -41,40 +37,47 @@ async def get_all_events(
     min_price: float = 0,
     max_price: float = 1500,
     radius: float = 100,
-    sort_by: str = "title"  # New: sort_by param
+    sort_by: str = "title"
 ):
-    """
-    Fetch and filter events based on:
-    - price range
-    - distance from a city
-    - interest keyword
-    """
     try:
-        # Get latitude/longitude for input city (OpenStreetMap)
+        # Get city coordinates
         user_coords = await get_coordinates_for_city(city)
         if not user_coords:
             raise HTTPException(status_code=400, detail="Unable to resolve city to coordinates")
 
-        # Concurrent fetch from all APIs
-        results = await asyncio.gather(
-            fetch_seatgeek_events(location=city, query=interest),
-            fetch_ticketmaster_events(location=city, query=interest),
-            fetch_eventbrite_events(location=city, query=interest)
-        )
+        # Handle multiple keywords in interest
+        keywords = interest.split() if interest else [""]
 
-        # Merge all results
-        combined = [event for source in results for event in source]
+        # Fetch for each keyword across providers
+        tasks = []
+        for keyword in keywords:
+            tasks.extend([
+                fetch_seatgeek_events(location=city, query=keyword),
+                fetch_ticketmaster_events(location=city, query=keyword),
+                fetch_eventbrite_events(location=city, query=keyword)
+            ])
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Combine successful results
+        combined = []
+        for r in results:
+            if isinstance(r, Exception):
+                print("⚠️ Error from API source:", r)
+                continue
+            combined.extend(r)
+
+        # Deduplicate by (title, ticket_url)
+        unique_events = {(e.title, e.ticket_url): e for e in combined}.values()
 
         # Apply filters
         def event_matches(event: NormalizedEvent):
-            # ---- Price filter ----
             try:
                 price_val = float(event.price.strip("$")) if event.price and "$" in event.price else 0
             except:
                 price_val = 0
             price_ok = min_price <= price_val <= max_price
 
-            # ---- Distance filter ----
             if event.latitude and event.longitude:
                 try:
                     event_coords = (float(event.latitude), float(event.longitude))
@@ -83,13 +86,13 @@ async def get_all_events(
                 except:
                     distance_ok = False
             else:
-                distance_ok = False  # no coordinates = no inclusion
+                distance_ok = False
 
             return price_ok and distance_ok
 
-        filtered = list(filter(event_matches, combined))
+        filtered = list(filter(event_matches, unique_events))
 
-        # Sort dynamically
+        # Sort by user preference
         if sort_by == "price":
             def price_value(event):
                 try:
@@ -99,9 +102,9 @@ async def get_all_events(
             filtered.sort(key=price_value)
         else:
             filtered.sort(key=lambda e: e.title.lower())
-        
+
         return filtered
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -110,7 +113,4 @@ async def get_all_events(
 # ----------------------------
 @app.get("/events/seatgeek", response_model=List[NormalizedEvent])
 async def get_seatgeek_events(city: str, interest: str = ""):
-    """
-    Endpoint to fetch and return normalized SeatGeek events for a given city and interest.
-    """
     return await fetch_seatgeek_events(location=city, query=interest)
