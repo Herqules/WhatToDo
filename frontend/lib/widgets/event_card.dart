@@ -44,16 +44,42 @@ class EventCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Source: ${event.source}", style: const TextStyle(fontSize: 12)),
+                Row(
+                  children: [
+                    const Text("Source: ", style: TextStyle(fontSize: 12)),
+                    Text(
+                      event.source,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _getSourceColor(event.source),
+                      ),
+                    ),
+                  ],
+                ),
                 ElevatedButton(
                   onPressed: () => _launchURL(event.ticketUrl),
                   child: const Text("View Tickets"),
                 ),
               ],
-            )
+            ),
           ],
         ),
       ),
     );
   }
 }
+
+Color _getSourceColor(String source) {
+  switch (source.toLowerCase()) {
+    case 'seatgeek':
+      return Colors.orange;
+    case 'eventbrite':
+      return Colors.blue;
+    case 'ticketmaster':
+      return Colors.redAccent;
+    default:
+      return Colors.black;
+  }
+}
+
