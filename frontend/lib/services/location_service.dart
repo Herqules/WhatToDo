@@ -6,7 +6,8 @@ class LocationService {
     if (query.isEmpty) return [];
 
     final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?city=$query&format=json&limit=5');
+  'https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=5'
+);
     final response = await http.get(url, headers: {
       'User-Agent': 'what-to-do-app/1.0' // required by Nominatim
     });

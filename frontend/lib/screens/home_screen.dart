@@ -21,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? selectedDate;
 
 void _onSearch() async {
-  if (city.trim().isEmpty) {
+  if (city.trim().isEmpty || selectedDate == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Please enter a city or location.')),
     );
@@ -37,7 +37,7 @@ void _onSearch() async {
   try {
     final result = await ApiService.fetchEvents(
       city: city,
-      interests: selectedInterests,
+      interests: selectedInterests.isNotEmpty ? selectedInterests : ['music', 'concert', 'show', 'comedy'],
       minPrice: 0,
       maxPrice: 1500,
       radius: 100,
@@ -138,8 +138,7 @@ void _onSearch() async {
               },
               ),
             ),
-            const SizedBox(height: 12),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _onSearch,
               child: const Text("Find Events"),

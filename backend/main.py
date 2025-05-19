@@ -48,9 +48,27 @@ async def get_all_events(
         if not user_coords:
             raise HTTPException(status_code=400, detail="Unable to resolve city to coordinates")
 
-        # Handle multiple keywords in interest
-        keywords = interest.split() if interest else [""]
-
+        
+        # Map similar words when normalizing interests:
+        synonym_map = {
+            "concerts": "concert",
+            "live music": "concert",
+            "jazz concert": "jazz",
+            "comedy show": "comedy",
+            "comedies": "comedy",
+            "plays": "theatre",
+            "theaters": "theatre",
+            "musics": "music",
+            "standup": "comedy",
+            "stand-up": "comedy",
+            "hiphop": "rap",
+            "hip-hop": "rap",
+            "gigs": "concert",
+            "recitals": "concert",
+        }
+        
+        keywords = [synonym_map.get(word.lower(), word.lower()) for word in interest.split()] if interest else ["music", "concert", "show"]
+        
         # Fetch for each keyword across providers
         tasks = []
         for keyword in keywords:
@@ -70,8 +88,35 @@ async def get_all_events(
                 continue
             combined.extend(r)
 
-        # Deduplicate by (title, ticket_url)
-        unique_events = {(e.title, e.ticket_url): e for e in combined}.values()
+        # Deduplicate by (title, ticket_url, event date)
+        unique_events = {(e.title, e.ticket_url, e.date): e for e in combined}.values()
+
+        # Step 1: Normalize keys and deduplicate more safely
+        def normalize_event_key(e):
+            title = (e.title or "").strip().lower()
+            url = (e.ticket_url or "").strip().lower().split("?")[0]
+            date = (e.date or "").strip()
+
+            # Optional cleanup: remove "(21+)" and truncate Eventbrite noise
+            if title.endswith(" (21+)"):
+                title = title.replace(" (21+)", "")
+            if "eventbrite" in url:
+                url_parts = url.split("/")
+                url = "/".join(url_parts[:5])  # keep only the base event path
+
+            return (title, url, date)
+
+        seen = set()
+        deduped = []
+
+        for e in combined:
+            key = normalize_event_key(e)
+            if key not in seen:
+                seen.add(key)
+                deduped.append(e)
+
+        print(f"→ TOTAL combined: {len(combined)}")
+        print(f"→ TOTAL deduplicated: {len(deduped)}")
 
         # Apply filters
         def event_matches(event: NormalizedEvent):
@@ -104,8 +149,8 @@ async def get_all_events(
 
             # date_ok = event.date == date if date else True
             return price_ok and distance_ok and date_ok
-
-        filtered = list(filter(event_matches, unique_events))
+        
+        filtered = list(filter(event_matches, deduped))
 
         # Sort dynamically based on user preference
         if "price" in sort_by:
