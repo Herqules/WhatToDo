@@ -49,6 +49,14 @@ class _InterestPickerState extends State<InterestPicker> {
           selected: isSelected,
           onSelected: (_) => _toggleInterest(interest),
           selectedColor: Colors.deepPurple.shade100,
+          backgroundColor: Colors.grey.shade200,
+          showCheckmark: false,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          )
         );
       }).toList(),
     );
