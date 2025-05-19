@@ -41,7 +41,8 @@ class _InterestPickerState extends State<InterestPicker> {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 10,
+      spacing: 8.0, //space between interest bubble chips
+      runSpacing: 6.0, //space between interest bubble row
       children: _allInterests.map((interest) {
         final isSelected = _selectedInterests.contains(interest);
         return FilterChip(

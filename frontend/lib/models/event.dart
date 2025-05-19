@@ -5,6 +5,9 @@ class Event {
   final String price;
   final String ticketUrl;
   final String source;
+  final String? latitude;
+  final String? longitude;
+  final String date;
 
   Event({
     required this.title,
@@ -13,6 +16,9 @@ class Event {
     required this.price,
     required this.ticketUrl,
     required this.source,
+    this.latitude,
+    this.longitude,
+    required this.date,
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
@@ -23,6 +29,9 @@ class Event {
       price: json['price'] ?? 'N/A',
       ticketUrl: json['ticket_url'] ?? '',
       source: json['source'] ?? '',
+      latitude: json['latitude']?.toString(),
+      longitude: json['longitude']?.toString(),
+      date: json['date'] ?? '',
     );
   }
 }

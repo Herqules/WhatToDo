@@ -37,16 +37,27 @@ void _onSearch() async {
   try {
     final result = await ApiService.fetchEvents(
       city: city,
-      interests: selectedInterests.isNotEmpty ? selectedInterests : ['music', 'concert', 'show', 'comedy'],
+      interests: selectedInterests.isNotEmpty
+          ? selectedInterests
+          : ['music', 'concert', 'show', 'comedy'],
       minPrice: 0,
       maxPrice: 1500,
       radius: 100,
       sortBy: _sortBy,
       date: selectedDate,
     );
+
+    // ✅ Deduplicate events
+    final Map<String, Event> uniqueEvents = {};
+    for (var e in result) {
+      final key = '${e.title}-${e.ticketUrl}-${e.date}';
+      uniqueEvents[key] = e;
+    }
+
     setState(() {
-      events = result;
+      events = uniqueEvents.values.toList();
     });
+
   } catch (e) {
     setState(() {
       error = 'Failed to load events: ${e.toString()}';
@@ -113,9 +124,16 @@ void _onSearch() async {
                 ),
               ],
             ),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
+            //
+            Container(
+              margin: const EdgeInsets.only(top: 10, bottom: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              constraints: const BoxConstraints(minHeight: 36, minWidth: 140),
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.deepPurple),
+              ),
               child: DropdownButton<String>(
                 value: _sortBy,
                 underline: SizedBox(), // removes the default blue underline
