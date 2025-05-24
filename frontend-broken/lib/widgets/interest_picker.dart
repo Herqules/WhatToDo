@@ -41,7 +41,8 @@ class _InterestPickerState extends State<InterestPicker> {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 10,
+      spacing: 8.0, //space between interest bubble chips
+      runSpacing: 6.0, //space between interest bubble row
       children: _allInterests.map((interest) {
         final isSelected = _selectedInterests.contains(interest);
         return FilterChip(
@@ -49,6 +50,14 @@ class _InterestPickerState extends State<InterestPicker> {
           selected: isSelected,
           onSelected: (_) => _toggleInterest(interest),
           selectedColor: Colors.deepPurple.shade100,
+          backgroundColor: Colors.grey.shade200,
+          showCheckmark: false,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          )
         );
       }).toList(),
     );

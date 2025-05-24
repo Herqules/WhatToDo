@@ -11,12 +11,16 @@ class ApiService {
     double minPrice = 0,
     double maxPrice = 1500,
     double radius = 100,
+    String sortBy = 'title',
+    DateTime? date,
   }) async {
     final interestQuery = (interests != null && interests.isNotEmpty)
         ? interests.join(" ")
         : "";
 
-    final uri = Uri.parse('$baseUrl?city=$city&interest=$interestQuery&min_price=$minPrice&max_price=$maxPrice&radius=$radius');
+    final uri = Uri.parse(
+  '$baseUrl?city=$city&interest=$interestQuery&min_price=$minPrice&max_price=$maxPrice&radius=$radius&sort_by=$sortBy');
+
 
     final response = await http.get(uri);
 

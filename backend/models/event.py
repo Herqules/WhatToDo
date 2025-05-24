@@ -13,6 +13,7 @@ class NormalizedEvent(BaseModel):
     price: str
     ticket_url: str
     source: str
+    date: str
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     date: Optional[str]  # Fromat: YYYY-MM-DD

@@ -14,39 +14,61 @@ class _HomeScreenState extends State<HomeScreen> {
   String city = '';
   List<String> selectedInterests = [];
   List<Event> events = [];
+  final List<String> _sortOptions = ['title', 'price-asc', 'price-desc'];
+  String _sortBy = 'title';
   bool isLoading = false;
   String? error;
+  DateTime? selectedDate;
 
-  void _onSearch() async {
-    if (city.trim().isEmpty) return;
+void _onSearch() async {
+  if (city.trim().isEmpty || selectedDate == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Please enter a city or location.')),
+    );
+    return;
+  }
+
+  setState(() {
+    isLoading = true;
+    error = null;
+    events = [];
+  });
+
+  try {
+    final result = await ApiService.fetchEvents(
+      city: city,
+      interests: selectedInterests.isNotEmpty
+          ? selectedInterests
+          : ['music', 'concert', 'show', 'comedy'],
+      minPrice: 0,
+      maxPrice: 1500,
+      radius: 100,
+      sortBy: _sortBy,
+      date: selectedDate,
+    );
+
+    // ✅ Deduplicate events
+    final Map<String, Event> uniqueEvents = {};
+    for (var e in result) {
+      final key = '${e.title}-${e.ticketUrl}-${e.date}';
+      uniqueEvents[key] = e;
+    }
 
     setState(() {
-      isLoading = true;
-      error = null;
-      events = [];
+      events = uniqueEvents.values.toList();
     });
 
-    try {
-      final result = await ApiService.fetchEvents(
-        city: city,
-        interests: selectedInterests,
-        minPrice: 0,
-        maxPrice: 1500,
-        radius: 100,
-      );
-      setState(() {
-        events = result;
-      });
-    } catch (e) {
-      setState(() {
-        error = 'Failed to load events: ${e.toString()}';
-      });
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
+  } catch (e) {
+    setState(() {
+      error = 'Failed to load events: ${e.toString()}';
+    });
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +91,72 @@ class _HomeScreenState extends State<HomeScreen> {
             InterestPicker(
               onSelectionChanged: (interests) => selectedInterests = interests,
             ),
-            const SizedBox(height: 16),
+            
+            // ----- Logic for Date picking UI -----
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  selectedDate == null
+                      ? 'No date selected'
+                      : 'Selected: ${selectedDate!.toLocal().toString().split(' ')[0]}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null && picked != selectedDate) {
+                      setState(() {
+                        selectedDate = picked;
+                      });
+                    }
+                  },
+                  child: const Text('Pick a Date'),
+                ),
+              ],
+            ),
+            //
+            Container(
+              margin: const EdgeInsets.only(top: 10, bottom: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              constraints: const BoxConstraints(minHeight: 36, minWidth: 140),
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.deepPurple),
+              ),
+              child: DropdownButton<String>(
+                value: _sortBy,
+                underline: SizedBox(), // removes the default blue underline
+                items: _sortOptions.map((option) {
+                  return DropdownMenuItem(
+                    value: option,
+                    child: Text(
+                    option == 'price-asc'
+                      ? 'Price (Low → High)'
+                      : option == 'price-desc'
+                        ? 'Price (High → Low)'
+                        : 'Title (A → Z)'
+                  ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _sortBy = value!;
+                  });
+              },
+              ),
+            ),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _onSearch,
               child: const Text("Find Events"),

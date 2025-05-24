@@ -1,131 +1,144 @@
+// lib/widgets/event_card.dart
+
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/event.dart';
+import 'package:intl/intl.dart';
 
 
 class EventCard extends StatelessWidget {
   final Event event;
+  const EventCard({Key? key, required this.event}) : super(key: key);
 
-  const EventCard({required this.event});
-
-  void _launchURL(String url) async {
-    final uri = Uri.parse(url);
+  Future<void> _launchUrl() async {
+    final uri = Uri.parse(event.ticketUrl);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
-    } else {
-      throw 'Could not launch $url';
     }
   }
 
-String _formatDateWithTime(String date) {
-    final parsedDate = DateTime.tryParse(date);
-    if (parsedDate != null) {
-      return "${parsedDate.day}/${parsedDate.month}/${parsedDate.year} ${parsedDate.hour}:${parsedDate.minute}";
-    }
-    return date; // Fallback to original string if parsing fails
+ String _formatDateWithTime(String iso) {
+  try {
+    final dt = DateTime.parse(iso);
+    // US style: MM/DD/YY
+    final dateStr = DateFormat('MM/dd/yy').format(dt);
+    // 12-hour time with AM/PM
+    final timeStr = DateFormat('h:mm a').format(dt);
+    return '$dateStr — $timeStr';  // using a simple dash
+  } catch (_) {
+    return iso; // fallback if parsing fails
   }
- 
+}
+
+
 
   @override
   Widget build(BuildContext context) {
-    final parsedDate = DateTime.tryParse(event.date);
+    final dateTimeLabel = event.date.isNotEmpty
+        ? _formatDateWithTime(event.date)
+        : null;
 
     return Card(
       elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(                            // ← No InkWell here
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title + date/time
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    event.title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (dateTimeLabel != null)
+                  Text(
+                    dateTimeLabel,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.deepPurple.shade700,
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Location
+            Text(
+              event.location,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // Description
+            if (event.description.isNotEmpty)
+              Text(
+                event.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(fontSize: 14),
+              ),
+
+            const SizedBox(height: 8),
+
+            // Price + source
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  event.title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  event.price,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                if (event.date.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0, bottom: 6.0),
-                    child: Text(
-                      _formatDateWithTime(event.date),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.deepPurple.shade700,
-                      ),
-                    ),
+                Chip(
+                  label: Text(
+                    event.source,
+                    style: GoogleFonts.poppins(fontSize: 12),
                   ),
-                const SizedBox(height: 4),
-                Text(
-                  event.location,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 4),
-                Text("Price: ${event.price}"),
-                const SizedBox(height: 6),
-                Text(
-                  event.description,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Text(
-                          "Source: ",
-                          style: TextStyle(fontSize: 12),
-                        ),
-                        Text(
-                          event.source,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: _getSourceColor(event.source),
-                          ),
-                        ),
-                      ],
-                    ),
-                    ElevatedButton(
-                      onPressed: () => _launchURL(event.ticketUrl),
-                      child: const Text("View Tickets"),
-                    ),
-                  ],
+                  backgroundColor: Colors.deepPurple.shade50,
                 ),
               ],
             ),
-          ),
-          if (event.date.isNotEmpty)
-            Positioned(
-              top: 8,
-              right: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.deepPurple.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.deepPurple),
-                ),
+
+            const SizedBox(height: 8),
+
+            // View Tickets button
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _launchUrl,
                 child: Text(
-                  _formatDateWithTime(event.date),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                  'View Tickets',
+                  style: GoogleFonts.poppins(
                     color: Colors.deepPurple,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
-        ],
+          ],
+        ),
       ),
-    );
+    );  // ← Semicolon here closes the return statement properly
   }
 }
 
