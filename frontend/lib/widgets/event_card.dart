@@ -85,6 +85,16 @@ class EventCard extends StatelessWidget {
                 color: Colors.grey[700],
               ),
             ),
+             const SizedBox(height: 4),
+
+              // ── Price (just below location)
+              Text(
+                'Price: ${event.price}',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
 
             const SizedBox(height: 8),
 
@@ -96,40 +106,6 @@ class EventCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.poppins(fontSize: 14),
               ),
-
-            const SizedBox(height: 8),
-
-            // Price + source
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  event.price,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Chip(
-                  avatar: Icon(
-                  // you can even pick a different icon per source if you like, see below
-                    Icons.confirmation_num,
-                    size: 16,
-                    color: sourceColor,
-                  ),
-                  label: Text(
-                    event.source,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: sourceColor,
-                    ),
-                  ),
-                  backgroundColor: sourceColor.withOpacity(0.15),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
             // View Tickets button
             Align(
               alignment: Alignment.centerRight,
