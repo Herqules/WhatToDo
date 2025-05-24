@@ -38,6 +38,7 @@ class EventCard extends StatelessWidget {
     final dateTimeLabel = event.date.isNotEmpty
         ? _formatDateWithTime(event.date)
         : null;
+     final sourceColor = _getSourceColor(event.source);
 
     return Card(
       elevation: 3,
@@ -110,15 +111,23 @@ class EventCard extends StatelessWidget {
                   ),
                 ),
                 Chip(
+                  avatar: Icon(
+                  // you can even pick a different icon per source if you like, see below
+                    Icons.confirmation_num,
+                    size: 16,
+                    color: sourceColor,
+                  ),
                   label: Text(
                     event.source,
-                    style: GoogleFonts.poppins(fontSize: 12),
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: sourceColor,
+                    ),
                   ),
-                  backgroundColor: Colors.deepPurple.shade50,
+                  backgroundColor: sourceColor.withOpacity(0.15),
                 ),
               ],
             ),
-
             const SizedBox(height: 8),
 
             // View Tickets button
