@@ -74,27 +74,21 @@ class _EventSearchScreenState extends State<EventSearchScreen> {
       return;
     }
 
-    setState(() => _loading = true);
-    try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(_pickedDate!);
-          // only pass city, since we’ve dropped date for testing
-      _events = await EventService.fetchEvents(
-      city: _locationCtrl.text.trim(),
+setState(() => _loading = true);
+  try {
+    final city = _locationCtrl.text.trim();
+    // ←– CALL THIS ONE for the combined stream:
+    _events = await EventService.fetchAllEvents(city: city);
+    // if you wanted SeatGeek-only: fetchSeatGeekEvents(city: city)
+    // if you wanted TM-only:    fetchTicketmasterEvents(city: city)
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
     );
-
-      
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: \$e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } finally {
-      setState(() => _loading = false);
-    }
+  } finally {
+    setState(() => _loading = false);
   }
-
+}
   @override
   Widget build(BuildContext context) {
     final dateLabel = _pickedDate == null

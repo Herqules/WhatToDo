@@ -38,7 +38,6 @@ class EventCard extends StatelessWidget {
     final dateTimeLabel = event.date.isNotEmpty
         ? _formatDateWithTime(event.date)
         : null;
-     final sourceColor = _getSourceColor(event.source);
 
     return Card(
       elevation: 3,
@@ -85,16 +84,6 @@ class EventCard extends StatelessWidget {
                 color: Colors.grey[700],
               ),
             ),
-             const SizedBox(height: 4),
-
-              // ── Price (just below location)
-              Text(
-                'Price: ${event.price}',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
 
             const SizedBox(height: 8),
 
@@ -106,6 +95,32 @@ class EventCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.poppins(fontSize: 14),
               ),
+
+            const SizedBox(height: 8),
+
+            // Price + source
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  event.price,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Chip(
+                  label: Text(
+                    event.source,
+                    style: GoogleFonts.poppins(fontSize: 12),
+                  ),
+                  backgroundColor: Colors.deepPurple.shade50,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
             // View Tickets button
             Align(
               alignment: Alignment.centerRight,
