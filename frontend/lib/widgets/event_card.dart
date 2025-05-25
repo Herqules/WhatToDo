@@ -109,13 +109,16 @@ class EventCard extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                Chip(
-                  label: Text(
-                    event.source,
-                    style: GoogleFonts.poppins(fontSize: 12),
-                  ),
-                  backgroundColor: Colors.deepPurple.shade50,
-                ),
+                 Chip(
+   label: Text(
+     event.source,
+     style: GoogleFonts.poppins(
+       fontSize: 12,
+       color: _getSourceColor(event.source), // full-strength source color
+     ),
+   ),
+   backgroundColor: _getSourceColor(event.source).withOpacity(0.15), 
+ ),
               ],
             ),
 
