@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/event.dart';
 import 'package:intl/intl.dart';
 
-
 class EventCard extends StatelessWidget {
   final Event event;
   const EventCard({Key? key, required this.event}) : super(key: key);
@@ -18,20 +17,16 @@ class EventCard extends StatelessWidget {
     }
   }
 
- String _formatDateWithTime(String iso) {
-  try {
-    final dt = DateTime.parse(iso);
-    // US style: MM/DD/YY
-    final dateStr = DateFormat('MM/dd/yy').format(dt);
-    // 12-hour time with AM/PM
-    final timeStr = DateFormat('h:mm a').format(dt);
-    return '$dateStr — $timeStr';  // using a simple dash
-  } catch (_) {
-    return iso; // fallback if parsing fails
+  String _formatDateWithTime(String iso) {
+    try {
+      final dt = DateTime.parse(iso);
+      final dateStr = DateFormat('MM/dd/yy').format(dt);
+      final timeStr = DateFormat('h:mm a').format(dt);
+      return '$dateStr — $timeStr';
+    } catch (_) {
+      return iso;
+    }
   }
-}
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +40,7 @@ class EventCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(                            // ← No InkWell here
+      child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,6 +82,17 @@ class EventCard extends StatelessWidget {
 
             const SizedBox(height: 8),
 
+            // Price
+            Text(
+              'Price: ${event.price}',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
             // Description
             if (event.description.isNotEmpty)
               Text(
@@ -98,31 +104,23 @@ class EventCard extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Price + source
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  event.price,
+            // Event source badge ABOVE the View Tickets button, aligned right
+            Align(
+              alignment: Alignment.centerRight,
+              child: Chip(
+                label: Text(
+                  event.source,
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    color: _getSourceColor(event.source),
                   ),
                 ),
-                 Chip(
-   label: Text(
-     event.source,
-     style: GoogleFonts.poppins(
-       fontSize: 12,
-       color: _getSourceColor(event.source), // full-strength source color
-     ),
-   ),
-   backgroundColor: _getSourceColor(event.source).withOpacity(0.15), 
- ),
-              ],
+                backgroundColor:
+                    _getSourceColor(event.source).withOpacity(0.15),
+              ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
 
             // View Tickets button
             Align(
@@ -141,7 +139,7 @@ class EventCard extends StatelessWidget {
           ],
         ),
       ),
-    );  // ← Semicolon here closes the return statement properly
+    );
   }
 }
 

@@ -10,6 +10,7 @@ class EventService {
   /// Fetches events from the unified `/events/all` endpoint
   static Future<List<Event>> fetchAllEvents({
     required String city,
+    required String date,
   }) async {
     final uri = Uri.parse(
       '$_baseUrl/events/all'
@@ -38,6 +39,26 @@ class EventService {
     final List data = json.decode(res.body);
     return data.map((j) => Event.fromJson(j)).toList();
   }
+
+  /// Fetch only Eventbrite events.
+static Future<List<Event>> fetchEventbriteEvents({
+  required String city,
+  String? date,
+}) async {
+  final params = <String>[
+    'city=${Uri.encodeComponent(city)}',
+    if (date != null && date.isNotEmpty) 'date=${Uri.encodeComponent(date)}',
+  ].join('&');
+
+  final uri = Uri.parse('$_baseUrl/events/eventbrite?$params');
+  final res = await http.get(uri);
+  if (res.statusCode != 200) {
+    throw Exception('Failed to load Eventbrite events (${res.statusCode})');
+  }
+  final data = json.decode(res.body) as List;
+  return data.map((j) => Event.fromJson(j)).toList();
+}
+
 
   /// Fetch only Ticketmaster events
   static Future<List<Event>> fetchTicketmasterEvents({

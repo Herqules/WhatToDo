@@ -77,10 +77,14 @@ class _EventSearchScreenState extends State<EventSearchScreen> {
 setState(() => _loading = true);
   try {
     final city = _locationCtrl.text.trim();
-    // ←– CALL THIS ONE for the combined stream:
-    _events = await EventService.fetchAllEvents(city: city);
-    // if you wanted SeatGeek-only: fetchSeatGeekEvents(city: city)
-    // if you wanted TM-only:    fetchTicketmasterEvents(city: city)
+
+     final isoDate = DateFormat('yyyy-MM-dd').format(_pickedDate!);
+
+
+    _events = await EventService.fetchAllEvents(
+      city: city,
+      date: isoDate,
+    );
   } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
