@@ -34,60 +34,38 @@ async def fetch_ticketmaster_events(location: str, query: str = "") -> List[Norm
 
     normalized_events = []
     for e in raw_events:
-        venue = e.get("_embedded", {}).get("venues", [{}])[0]
-        location_data = venue.get("location", {})
+        venue       = e.get("_embedded", {}).get("venues", [{}])[0]
+        loc         = venue.get("location") or {}
+        latitude    = float(loc["latitude"])  if loc.get("latitude")  else None
+        longitude   = float(loc["longitude"]) if loc.get("longitude") else None
 
-        latitude = float(location_data.get("latitude", 0)) if location_data.get("latitude") else None
-        longitude = float(location_data.get("longitude", 0)) if location_data.get("longitude") else None
-
-        # Price filtering logic, Take Max and Min and return a range or say Varies
-        price_data = e.get("priceRanges", [{}])[0]
-        min_price = price_data.get("min")
-        max_price = price_data.get("max")
-        if min_price and max_price:
-            price = f"${min_price} - ${max_price}"
+        # Price: single "$X" if min==max, else "$min - $max"
+        pr  = e.get("priceRanges", [{}])[0]
+        mn  = pr.get("min"); mx = pr.get("max")
+        if mn is not None and mx is not None:
+            price = f"${mn}" if mn == mx else f"${mn} - ${mx}"
         else:
             price = "Varies by ticket package"
 
-        start_date_raw = e.get("dates", {}).get("start", {}).get("localDate", "")
-        start_time_raw = e.get("dates", {}).get("start", {}).get("localTime", "")
-        start_date = e.get("dates", {}).get("start", {}).get("localDate", "")
-        start_time = e.get("dates", {}).get("start", {}).get("localTime", "")
-        datetime_str = f"{start_date}T{start_time}" if start_date and start_time else start_date
+        # ISO date/time (falling back to date-only)
+        dates          = e.get("dates", {}).get("start") or {}
+        d_raw          = dates.get("localDate", "")
+        t_raw          = dates.get("localTime", "")
+        iso            = f"{d_raw}T{t_raw}" if d_raw and t_raw else d_raw
 
-        # Always build a canonical ISO datetime first
-        start_datetime = (
-            f"{start_date_raw}T{start_time_raw}"
-            if start_date_raw and start_time_raw
-            else start_date_raw
-        )
-
-
-
-
-        final_date = e["dates"]["start"]["localDate"]        # YYYY-MM-DD
-        final_time = e["dates"]["start"]["localTime"]        # HH:MM:SS
-        start_datetime = (
-            f"{final_date}T{final_time}"
-            if final_date and final_time
-            else final_date
-        )
-        date = start_datetime
-
-        date = e.get("start", {}).get("localDate", "").split("T")[0]
         normalized_events.append(NormalizedEvent(
-            title=e.get("name", "No Title"),
-            description=e.get("info", "No description available."),
-            location=venue.get("city", {}).get("name", "Unknown"),
-            price=price,
-            date = datetime_str,
-            start_date     = start_date,
-            start_time     = start_time,
-            start_datetime = start_datetime,
-            ticket_url=e.get("url"),
-            source="Ticketmaster",
-            latitude=latitude,
-            longitude=longitude
+            title          = e.get("name", "No Title"),
+            description    = e.get("info") or "No description available.",
+            location       = venue.get("city", {}).get("name", "Unknown"),
+            price          = price,
+            date           = iso,
+            start_date     = d_raw,
+            start_time     = t_raw,
+            start_datetime = iso,
+            ticket_url     = str(e.get("url") or ""),
+            source         = "Ticketmaster",
+            latitude       = latitude,
+            longitude      = longitude
         ))
 
     return normalized_events
