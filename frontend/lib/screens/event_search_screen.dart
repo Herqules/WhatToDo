@@ -81,10 +81,18 @@ setState(() => _loading = true);
      final isoDate = DateFormat('yyyy-MM-dd').format(_pickedDate!);
 
 
-    _events = await EventService.fetchAllEvents(
+    // fetch everything (backend may do a coarse filter)…
+    final all = await EventService.fetchAllEvents(
       city: city,
       date: isoDate,
     );
+
+    // …but then enforce exact same-day filtering on the client:
+    _events = all.where((evt) {
+      // evt.date might be "2025-07-08T19:30:00" or just "2025-07-08"
+      final dayOnly = evt.date.split('T').first;
+      return dayOnly == isoDate;
+    }).toList();
   } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
