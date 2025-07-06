@@ -3,9 +3,9 @@ from fastapi import FastAPI, HTTPException
 from typing import List
 from dotenv import load_dotenv
 from backend.models.event import NormalizedEvent
-from backend.apis.seatgeek import fetch_seatgeek_events
-from backend.apis.ticketmaster import fetch_ticketmaster_events
-from backend.apis.eventbrite import fetch_eventbrite_events
+from backend.loaders.seatgeek_loader import fetch_seatgeek_events
+from backend.loaders.ticketmaster_loader import fetch_ticketmaster_events
+from backend.loaders.eventbrite_loader import fetch_eventbrite_events
 from geopy.distance import geodesic
 from backend.utils.env import get_coordinates_for_city
 from fastapi.middleware.cors import CORSMiddleware
