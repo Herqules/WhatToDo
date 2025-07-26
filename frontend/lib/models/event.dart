@@ -14,11 +14,17 @@ class Event {
   final double? latitude;
   final double? longitude;
 
-  // ← new, nullable
+  // ← existing “venue” fields
   final String? venueName;
   final String? venueAddress;
   final String? venueFullAddress;
   final String? venueType;
+
+  // ← new “flip‑side” fields
+  final String? category;
+  final String? venuePhone;
+  final String? acceptedPayment;
+  final String? parkingDetail;
 
   Event({
     required this.title,
@@ -33,11 +39,16 @@ class Event {
     required this.source,
     this.latitude,
     this.longitude,
-    // ← new
+
+    // ← wire in your new fields here
     this.venueName,
     this.venueAddress,
     this.venueFullAddress,
     this.venueType,
+    this.category,
+    this.venuePhone,
+    this.acceptedPayment,
+    this.parkingDetail,
   });
 
   factory Event.fromJson(Map<String, dynamic> j) => Event(
@@ -53,11 +64,16 @@ class Event {
         source: j['source'] as String? ?? '',
         latitude: (j['latitude'] as num?)?.toDouble(),
         longitude: (j['longitude'] as num?)?.toDouble(),
-        // ← wire up the new fields
+
+        // ← deserialize your new fields
         venueName: j['venue_name'] as String?,
         venueAddress: j['venue_address'] as String?,
         venueFullAddress: j['venue_full_address'] as String?,
         venueType: j['venue_type'] as String?,
+        category: j['category'] as String?,
+        venuePhone: j['venue_phone'] as String?,
+        acceptedPayment: j['accepted_payment'] as String?,
+        parkingDetail: j['parking_detail'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -73,10 +89,15 @@ class Event {
         'source': source,
         'latitude': latitude,
         'longitude': longitude,
-        // ← include new fields if you ever post back
+
+        // ← serialize your new fields
         'venue_name': venueName,
         'venue_address': venueAddress,
         'venue_full_address': venueFullAddress,
         'venue_type': venueType,
+        'category': category,
+        'venue_phone': venuePhone,
+        'accepted_payment': acceptedPayment,
+        'parking_detail': parkingDetail,
       };
 }

@@ -78,3 +78,15 @@ async def get_all_events(
 @app.get("/events/seatgeek", response_model=List[NormalizedEvent])
 async def get_seatgeek_events(city: str, interest: str = ""):
     return await fetch_seatgeek_events(city, interest)
+
+
+@app.get("/events/ticketmaster", response_model=List[NormalizedEvent])
+async def get_ticketmaster_events(
+    city: str,
+    interest: str = "",
+    size: int = 10
+) -> List[NormalizedEvent]:
+    """
+    Fetch Ticketmaster events by city + keyword (interest).
+    """
+    return await fetch_ticketmaster_events(city, interest, size)

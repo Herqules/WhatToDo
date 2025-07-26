@@ -4,7 +4,7 @@ import os
 import logging
 import re
 import html
-from typing import List
+from typing import List, Optional
 import httpx
 from datetime import datetime as dt
 
@@ -36,6 +36,11 @@ async def fetch_ticketmaster_events(
       - Dates in YYYY-MM-DD
       - Times in h:mm AM/PM
       - Deduplicates by TM event ID
+      - Extracts full venue info + flip‑side fields:
+         • category (genre)
+         • venue_phone
+         • accepted_payment
+         • parking_detail
       - Fallback to sales.public.url if url is missing
     Returns [] on any failure.
     """
@@ -69,61 +74,74 @@ async def fetch_ticketmaster_events(
     seen_ids = set()
 
     for e in raw_events:
-        # 2) Dedupe by TM’s own ID
         tm_id = e.get("id")
         if not tm_id or tm_id in seen_ids:
             continue
         seen_ids.add(tm_id)
 
         try:
-            # — Description: pick longest candidate, strip HTML, unescape entities —
+            # — Description —
             desc_candidates: List[str] = []
             if info := e.get("info"):
                 desc_candidates.append(info)
             if note := e.get("pleaseNote"):
                 desc_candidates.append(note)
-
             desc_field = e.get("description")
             if isinstance(desc_field, dict):
-                if txt := desc_field.get("text"):
-                    desc_candidates.append(txt)
-                elif html_txt := desc_field.get("html"):
-                    desc_candidates.append(html_txt)
+                desc_candidates.append(desc_field.get("text", "") or desc_field.get("html", ""))
             elif isinstance(desc_field, str):
                 desc_candidates.append(desc_field)
-
             if promoter := e.get("promoter", {}):
-                if pdesc := promoter.get("description"):
-                    desc_candidates.append(pdesc)
-
-            raw_desc = max(
-                (d.strip() for d in desc_candidates if isinstance(d, str) and d.strip()),
-                key=len, default=""
-            )
-            desc_no_tags = re.sub(r"<[^>]+>", "", raw_desc)
-            description = html.unescape(desc_no_tags).strip() or "No description available."
+                desc_candidates.append(promoter.get("description", ""))
+            raw_desc = max((d.strip() for d in desc_candidates if d), key=len, default="")
+            description = html.unescape(re.sub(r"<[^>]+>", "", raw_desc)).strip() or "No description available."
 
             # — Venue & coords —
             venue = (e.get("_embedded", {}).get("venues") or [{}])[0]
             loc = venue.get("location") or {}
-            latitude = float(loc["latitude"]) if loc.get("latitude") else None
-            longitude = float(loc["longitude"]) if loc.get("longitude") else None
-            loc_name = venue.get("city", {}).get("name", "Unknown")
+            latitude = float(loc.get("latitude")) if loc.get("latitude") else None
+            longitude = float(loc.get("longitude")) if loc.get("longitude") else None
+
+            # — Core venue fields —
+            venue_name = venue.get("name")
+            addr = venue.get("address", {}).get("line1")
+            city_name = venue.get("city", {}).get("name")
+            state_code = venue.get("state", {}).get("stateCode")
+            postal    = venue.get("postalCode")
+            extended  = f"{city_name}, {state_code} {postal}" if city_name and state_code and postal else None
+            full_address = ", ".join(filter(None, [addr, extended])) if (addr or extended) else None
+
+            # — Flip‑side: box office & parking —
+            box_info        = venue.get("boxOfficeInfo", {}) or {}
+            venue_phone     = box_info.get("phoneNumberDetail")
+            accepted_payment= box_info.get("acceptedPaymentDetail")
+            parking_detail  = venue.get("parkingDetail")
+
+            # — Flip‑side: category from event classifications (genre) —
+            category: Optional[str] = None
+            classifications = e.get("classifications") or []
+            if classifications:
+                genre = classifications[0].get("genre", {}) or {}
+                category = genre.get("name")
 
             # — Price parsing —
             pr = (e.get("priceRanges") or [{}])[0]
             mn, mx = pr.get("min"), pr.get("max")
             if mn is not None and mx is not None:
-                price = f"${mn}" if mn == mx else f"${mn} - ${mx}"
+                if mn == 0 and mx == 0:
+                    price = "Free"
+                elif mn == mx:
+                    price = f"${mn:.2f}"
+                else:
+                    price = f"${mn:.2f} - ${mx:.2f}"
             else:
                 price = "Varies by ticket package"
 
             # — Date & Time —
             dates = e.get("dates", {}).get("start") or {}
-            d_raw = dates.get("localDate", "")
-            t_raw = dates.get("localTime", "")
-            date_part = d_raw or ""
-
+            d_raw = dates.get("localDate", "") or ""
+            t_raw = dates.get("localTime", "") or ""
+            date_part = d_raw
             if t_raw:
                 try:
                     t_obj = dt.strptime(t_raw, "%H:%M:%S")
@@ -132,7 +150,6 @@ async def fetch_ticketmaster_events(
                     start_time = t_raw
             else:
                 start_time = ""
-
             iso = f"{d_raw}T{t_raw}" if d_raw and t_raw else d_raw
 
             # — Ticket URL fallback —
@@ -144,20 +161,27 @@ async def fetch_ticketmaster_events(
                      .get("url", "")
             ) or ""
 
-            # 3) Append normalized event
             normalized.append(NormalizedEvent(
-                title          = e.get("name", "No Title"),
-                description    = description,
-                location       = loc_name,
-                price          = price,
-                date           = date_part,
-                start_date     = date_part,
-                start_time     = start_time,
-                start_datetime = iso,
-                ticket_url     = url,
-                source         = "Ticketmaster",
-                latitude       = latitude,
-                longitude      = longitude,
+                title                = e.get("name", "No Title"),
+                description          = description,
+                location             = city_name or "Unknown",
+                venue_name           = venue_name,
+                venue_address        = addr,
+                venue_full_address   = full_address,
+                venue_type           = classifications[0].get("segment", {}).get("name") if classifications else None,
+                category             = category,
+                venue_phone          = venue_phone,
+                accepted_payment     = accepted_payment,
+                parking_detail       = parking_detail,
+                price                = price,
+                ticket_url           = url,
+                source               = "Ticketmaster",
+                date                 = date_part,
+                start_date           = date_part,
+                start_time           = start_time,
+                start_datetime       = iso,
+                latitude             = latitude,
+                longitude            = longitude,
             ))
 
         except Exception as err:

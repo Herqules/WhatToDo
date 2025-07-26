@@ -64,10 +64,15 @@ async def fetch_seatgeek_events(
             stats = item.get("stats", {})
             low = stats.get("lowest_price")
             high = stats.get("highest_price")
-            if low and high:
-                price_str = f"${low}–${high}"
-            elif low:
-                price_str = f"Starting at ${low}"
+            if low is not None and high is not None:
+                if low == 0 and high == 0:
+                    price_str = "Free"
+                elif low == high:
+                    price_str = f"${low}"
+                else:
+                    price_str = f"${low}–${high}"
+            elif low is not None:
+                price_str = "Free" if low == 0 else f"Starting at ${low}"
             else:
                 price_str = "Varies by seating/ticket tier"
 
@@ -101,9 +106,24 @@ async def fetch_seatgeek_events(
                 full_address = extended or street
             # event type from SeatGeek (e.g. “theater”)
             venue_type    = item.get("type") or None
+            # —— NEW: pull primary category (first taxonomy) ——
+            taxos = item.get("taxonomies") or []
+            category = None
+            if taxos and isinstance(taxos, list):
+                # taxonomies[].name
+                category = taxos[0].get("name")
+
             # coords
             lat_v         = venue.get("location", {}).get("lat")
-            lon_v         = venue.get("location", {}).get("lon")            
+            lon_v         = venue.get("location", {}).get("lon")    
+
+            # —— NEW: pull parking info if any passes exist ——
+            parkingDetail = None
+            for p in venue.get("passes", []) or []:
+                if p.get("pass_type") == "PARKING":
+                    parkingDetail = p.get("name")
+                    break
+
 
             # — Description cleaning —
             raw_desc = item.get("description") or ""
@@ -128,6 +148,8 @@ async def fetch_seatgeek_events(
                 venue_address       = street,
                 venue_full_address  = full_address,
                 venue_type          = venue_type,
+                category            = category,
+                parking_detail      = parkingDetail,
                 price=price_str,
                 date=date_part,
                 start_date=date_part,
