@@ -6,15 +6,10 @@ from fastapi import FastAPI, HTTPException
 from typing import List
 
 from backend.models.event import NormalizedEvent
-from backend.loaders.seatgeek_loader     import fetch_seatgeek_events
+from backend.loaders.seatgeek_loader import fetch_seatgeek_events
 from backend.loaders.ticketmaster_loader import fetch_ticketmaster_events
-from backend.utils.env                   import get_coordinates_for_city
-from backend.utils.event_utils           import (
-    get_keywords,
-    dedupe,
-    event_matches,
-    sort_events,
-)
+from backend.utils.env import get_coordinates_for_city
+from backend.utils.event_utils import dedupe, event_matches, sort_events
 from fastapi.middleware.cors import CORSMiddleware
 from backend.utils.loggy import get_logger
 
@@ -22,7 +17,6 @@ from backend.utils.loggy import get_logger
 load_dotenv()
 
 logger = get_logger("main")
-
 
 app = FastAPI(
     title="WhatToDo",
@@ -46,20 +40,20 @@ async def get_all_events(
     sort_by: str = "",
     date: str = ""
 ):
-    # 1) Geocode ONCE
+    # 1) Geocode once
     coords = await get_coordinates_for_city(city)
     if not coords:
         raise HTTPException(400, "Unable to resolve city to coordinates")
-    lat, lon = coords    
+    lat, lon = coords
 
-    # 5) Fire them all
+    # 2) Fetch from each source exactly once, passing the raw interest string
     results = await asyncio.gather(
         fetch_seatgeek_events(city, interest),
         fetch_ticketmaster_events(city, interest),
         return_exceptions=True
     )
 
-    # 6) Flatten + log failures
+    # 3) Flatten + log any loader failures
     combined: List[NormalizedEvent] = []
     for r in results:
         if isinstance(r, Exception):
@@ -67,20 +61,19 @@ async def get_all_events(
         else:
             combined.extend(r)
 
-    # 7) Deduplicate
+    # 4) Deduplicate by title+date+location (cross‑source) or by event_id if you added that
     deduped = dedupe(combined)
-    print(f"→ TOTAL combined:   {len(combined)}")
-    print(f"→ TOTAL deduplicated: {len(deduped)}")
+    logger.info("→ TOTAL combined:   %d", len(combined))
+    logger.info("→ TOTAL deduplicated: %d", len(deduped))
 
-    # 8) Apply filters
+    # 5) Apply client‑side filters: interest, price, radius, date
     filtered = [
         e for e in deduped
         if event_matches(e, coords, min_price, max_price, radius, date)
     ]
 
-    # 9) Sort & return
+    # 6) Sort & return
     return sort_events(filtered, sort_by)
-
 
 @app.get("/events/seatgeek", response_model=List[NormalizedEvent])
 async def get_seatgeek_events(city: str, interest: str = ""):

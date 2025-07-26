@@ -10,12 +10,16 @@ from datetime import datetime as dt
 
 from backend.models.event import NormalizedEvent
 
+# ——— Logger setup ———
 logger = logging.getLogger("loaders.ticketmaster")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-8s %(name)s %(message)s"))
+handler.setFormatter(
+    logging.Formatter("%(asctime)s %(levelname)-8s %(name)s %(message)s")
+)
 logger.addHandler(handler)
 
+# ——— Config ———
 TICKETMASTER_API_KEY = os.getenv("TICKETMASTER_API_KEY")
 BASE_URL = "https://app.ticketmaster.com/discovery/v2/events.json"
 
@@ -27,16 +31,16 @@ async def fetch_ticketmaster_events(
     """
     Fetch events from Ticketmaster by city + keyword.
     Normalizes:
-      - HTML stripped and entities unescaped in descriptions
-      - price ranges formatted
-      - date in YYYY-MM-DD
-      - human-readable 12-hour time
-      - deduplicates by title, datetime, location
-      - fallback ticket URLs from sales.public.url
+      - Strips HTML tags & unescapes entities in descriptions
+      - Formats price ranges
+      - Dates in YYYY-MM-DD
+      - Times in h:mm AM/PM
+      - Deduplicates by TM event ID
+      - Fallback to sales.public.url if url is missing
     Returns [] on any failure.
     """
     if not TICKETMASTER_API_KEY:
-        logger.warning("Ticketmaster API key missing, skipping Ticketmaster loader")
+        logger.warning("Ticketmaster API key missing; skipping loader.")
         return []
 
     params = {
@@ -46,26 +50,33 @@ async def fetch_ticketmaster_events(
         "size": size
     }
 
+    # 1) Fetch raw JSON
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            logger.info("Ticketmaster ▶︎ q=%r city=%r size=%d", query, city, size)
+            logger.info("Ticketmaster ▶ q=%r city=%r size=%d", query, city, size)
             resp = await client.get(BASE_URL, params=params)
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPStatusError as e:
         logger.error("Ticketmaster HTTP %d: %s", e.response.status_code, e.response.text)
         return []
-    except Exception:
-        logger.exception("Unexpected error calling Ticketmaster")
+    except Exception as e:
+        logger.exception("Unexpected Ticketmaster error: %s", e)
         return []
 
     raw_events = data.get("_embedded", {}).get("events", [])
     normalized: List[NormalizedEvent] = []
-    seen_keys = set()
+    seen_ids = set()
 
     for e in raw_events:
+        # 2) Dedupe by TM’s own ID
+        tm_id = e.get("id")
+        if not tm_id or tm_id in seen_ids:
+            continue
+        seen_ids.add(tm_id)
+
         try:
-            # 1) Build description candidates
+            # — Description: pick longest candidate, strip HTML, unescape entities —
             desc_candidates: List[str] = []
             if info := e.get("info"):
                 desc_candidates.append(info)
@@ -74,10 +85,10 @@ async def fetch_ticketmaster_events(
 
             desc_field = e.get("description")
             if isinstance(desc_field, dict):
-                if text := desc_field.get("text"):
-                    desc_candidates.append(text)
-                elif html_field := desc_field.get("html"):
-                    desc_candidates.append(html_field)
+                if txt := desc_field.get("text"):
+                    desc_candidates.append(txt)
+                elif html_txt := desc_field.get("html"):
+                    desc_candidates.append(html_txt)
             elif isinstance(desc_field, str):
                 desc_candidates.append(desc_field)
 
@@ -85,26 +96,21 @@ async def fetch_ticketmaster_events(
                 if pdesc := promoter.get("description"):
                     desc_candidates.append(pdesc)
 
-            # pick the longest non-empty candidate
             raw_desc = max(
                 (d.strip() for d in desc_candidates if isinstance(d, str) and d.strip()),
-                key=len,
-                default=""
+                key=len, default=""
             )
-            # strip HTML tags
             desc_no_tags = re.sub(r"<[^>]+>", "", raw_desc)
-            # unescape HTML entities
-            desc_unescaped = html.unescape(desc_no_tags).strip()
-            description = desc_unescaped or "No description available."
+            description = html.unescape(desc_no_tags).strip() or "No description available."
 
-            # 2) Venue & coordinates
+            # — Venue & coords —
             venue = (e.get("_embedded", {}).get("venues") or [{}])[0]
             loc = venue.get("location") or {}
-            latitude = float(loc.get("latitude")) if loc.get("latitude") else None
-            longitude = float(loc.get("longitude")) if loc.get("longitude") else None
+            latitude = float(loc["latitude"]) if loc.get("latitude") else None
+            longitude = float(loc["longitude"]) if loc.get("longitude") else None
             loc_name = venue.get("city", {}).get("name", "Unknown")
 
-            # 3) Price parsing
+            # — Price parsing —
             pr = (e.get("priceRanges") or [{}])[0]
             mn, mx = pr.get("min"), pr.get("max")
             if mn is not None and mx is not None:
@@ -112,11 +118,11 @@ async def fetch_ticketmaster_events(
             else:
                 price = "Varies by ticket package"
 
-            # 4) Dates & times
+            # — Date & Time —
             dates = e.get("dates", {}).get("start") or {}
             d_raw = dates.get("localDate", "")
             t_raw = dates.get("localTime", "")
-            date_part = d_raw
+            date_part = d_raw or ""
 
             if t_raw:
                 try:
@@ -129,34 +135,32 @@ async def fetch_ticketmaster_events(
 
             iso = f"{d_raw}T{t_raw}" if d_raw and t_raw else d_raw
 
-            # dedupe key (title, datetime, location)
-            title = e.get("name") or "No Title"
-            key = (title.lower().strip(), iso, loc_name.lower().strip())
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
+            # — Ticket URL fallback —
+            url = (
+                e.get("url")
+                or e.get("_embedded", {})
+                     .get("sales", {})
+                     .get("public", {})
+                     .get("url", "")
+            ) or ""
 
-            # 5) Ticket URL fallback
-            url = e.get("url") or e.get("_embedded", {}) \
-                    .get("sales", {}) \
-                    .get("public", {}) \
-                    .get("url", "") or ""
-
+            # 3) Append normalized event
             normalized.append(NormalizedEvent(
-                title=title,
-                description=description,
-                location=loc_name,
-                price=price,
-                date=date_part,
-                start_date=date_part,
-                start_time=start_time,
-                start_datetime=iso,
-                ticket_url=url,
-                source="Ticketmaster",
-                latitude=latitude,
-                longitude=longitude,
+                title          = e.get("name", "No Title"),
+                description    = description,
+                location       = loc_name,
+                price          = price,
+                date           = date_part,
+                start_date     = date_part,
+                start_time     = start_time,
+                start_datetime = iso,
+                ticket_url     = url,
+                source         = "Ticketmaster",
+                latitude       = latitude,
+                longitude      = longitude,
             ))
+
         except Exception as err:
-            logger.error("Skipping malformed Ticketmaster event: %s", err)
+            logger.error("Skipping malformed TM event %s: %s", tm_id, err)
 
     return normalized

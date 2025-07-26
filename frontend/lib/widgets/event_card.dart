@@ -34,25 +34,22 @@ class EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Compute a single date/time label if available.
-    String? _getDateTimeLabel() {
-      // If backend provided a full ISO datetime with a real time
-      if (event.startDatetime.isNotEmpty) {
-        return _formatDateWithTime(event.startDatetime);
+    // 1) Build the date/time label exactly as you had it
+    String? dateTimeLabel;
+    if (event.startDatetime.isNotEmpty) {
+      dateTimeLabel = _formatDateWithTime(event.startDatetime);
+    } else if (event.date.isNotEmpty) {
+      try {
+        final d = DateTime.parse(event.date);
+        dateTimeLabel = DateFormat('MM/dd/yy').format(d);
+      } catch (_) {
+        dateTimeLabel = event.date;
       }
-      // Otherwise, fall back to just the date (MM/dd/yy)
-      if (event.date.isNotEmpty) {
-        try {
-          final d = DateTime.parse(event.date);
-          return DateFormat('MM/dd/yy').format(d);
-        } catch (_) {
-          return event.date;
-        }
-      }
-      return null;
     }
 
-    final dateTimeLabel = _getDateTimeLabel();
+    // 2) Determine if we have a *real* description
+    final hasRealDesc = event.description.isNotEmpty &&
+        event.description != _noDescriptionPlaceholder;
 
     return Card(
       elevation: 3,
@@ -65,7 +62,7 @@ class EventCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title + date/time
+            // ── Title + date/time ────────────────────────────
             Row(
               children: [
                 Expanded(
@@ -91,7 +88,7 @@ class EventCard extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Location
+            // ── Location ─────────────────────────────────────
             Text(
               event.location,
               style: GoogleFonts.poppins(
@@ -102,7 +99,7 @@ class EventCard extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Price
+            // ── Price ────────────────────────────────────────
             Text(
               'Price: ${event.price}',
               style: GoogleFonts.poppins(
@@ -113,19 +110,27 @@ class EventCard extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Description (hide the generic placeholder entirely)
-            if (event.description.isNotEmpty &&
-                event.description != _noDescriptionPlaceholder)
+            // ── SINGLE Description block ─────────────────────
+            if (hasRealDesc)
               Text(
                 event.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.poppins(fontSize: 14),
+              )
+            else
+              Text(
+                'More details on the ticket site →',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey.shade600,
+                ),
               ),
 
             const SizedBox(height: 8),
 
-            // Source badge
+            // ── Source badge ─────────────────────────────────
             Align(
               alignment: Alignment.centerRight,
               child: Chip(
@@ -143,7 +148,7 @@ class EventCard extends StatelessWidget {
 
             const SizedBox(height: 4),
 
-            // View Tickets button
+            // ── View Tickets button ──────────────────────────
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -169,10 +174,10 @@ Color _getSourceColor(String source) {
   switch (source.toLowerCase()) {
     case 'seatgeek':
       return Colors.orange;
-    case 'eventbrite':
-      return Colors.blue;
     case 'ticketmaster':
       return Colors.redAccent;
+    case 'eventbrite':
+      return Colors.blue;
     default:
       return Colors.black;
   }
