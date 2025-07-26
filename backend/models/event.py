@@ -11,9 +11,15 @@ class NormalizedEvent(BaseModel):
     description: str
     location: str
     price: str
+
+    # Dates & times
+    date: Optional[str]          # YYYY‑MM‑DD
+    start_date: Optional[str]    # same as date (or more specific)
+    start_time: Optional[str]    # h:mm AM/PM or empty
+    start_datetime: Optional[str]# full ISO string
+
     ticket_url: str
     source: str
-    date: str
+
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    date: Optional[str]  # Fromat: YYYY-MM-DD

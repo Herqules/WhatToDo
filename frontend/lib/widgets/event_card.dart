@@ -1,5 +1,3 @@
-// lib/widgets/event_card.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,16 +5,22 @@ import '../models/event.dart';
 import 'package:intl/intl.dart';
 
 class EventCard extends StatelessWidget {
+  /// Placeholder text from the backend for missing descriptions
+  static const String _noDescriptionPlaceholder = 'No description available.';
+
   final Event event;
   const EventCard({Key? key, required this.event}) : super(key: key);
 
+  /// Safely launch the ticket URL if it's non-empty and valid.
   Future<void> _launchUrl() async {
-    final uri = Uri.parse(event.ticketUrl);
-    if (await canLaunchUrl(uri)) {
+    if (event.ticketUrl.isEmpty) return;
+    final uri = Uri.tryParse(event.ticketUrl);
+    if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
   }
 
+  /// Format an ISO datetime string into "MM/dd/yy — h:mm a".
   String _formatDateWithTime(String iso) {
     try {
       final dt = DateTime.parse(iso);
@@ -30,9 +34,25 @@ class EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateTimeLabel = event.date.isNotEmpty
-        ? _formatDateWithTime(event.date)
-        : null;
+    // Compute a single date/time label if available.
+    String? _getDateTimeLabel() {
+      // If backend provided a full ISO datetime with a real time
+      if (event.startDatetime.isNotEmpty) {
+        return _formatDateWithTime(event.startDatetime);
+      }
+      // Otherwise, fall back to just the date (MM/dd/yy)
+      if (event.date.isNotEmpty) {
+        try {
+          final d = DateTime.parse(event.date);
+          return DateFormat('MM/dd/yy').format(d);
+        } catch (_) {
+          return event.date;
+        }
+      }
+      return null;
+    }
+
+    final dateTimeLabel = _getDateTimeLabel();
 
     return Card(
       elevation: 3,
@@ -93,8 +113,9 @@ class EventCard extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Description
-            if (event.description.isNotEmpty)
+            // Description (hide the generic placeholder entirely)
+            if (event.description.isNotEmpty &&
+                event.description != _noDescriptionPlaceholder)
               Text(
                 event.description,
                 maxLines: 2,
@@ -104,7 +125,7 @@ class EventCard extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Event source badge ABOVE the View Tickets button, aligned right
+            // Source badge
             Align(
               alignment: Alignment.centerRight,
               child: Chip(
@@ -143,6 +164,7 @@ class EventCard extends StatelessWidget {
   }
 }
 
+/// Map source names to brand colors
 Color _getSourceColor(String source) {
   switch (source.toLowerCase()) {
     case 'seatgeek':

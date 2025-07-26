@@ -1,5 +1,8 @@
 # backend/utils/event_utils.py
 
+"""
+Utilities for keyword extraction, deduplication, filtering, and sorting of normalized events.
+"""
 from datetime import datetime
 from typing import Tuple, List
 from geopy.distance import geodesic
@@ -25,23 +28,37 @@ SYNONYM_MAP = {
 
 # ─── KEYWORD EXTRACTION ─────────────────────────────────────────────────────────
 def get_keywords(interest: str) -> List[str]:
+    """
+    Map raw user interest words to normalized keywords.
+    """
     if not interest:
         return ["music", "concert", "show"]
     return [SYNONYM_MAP.get(w.lower(), w.lower()) for w in interest.split()]
 
-# ─── DEDUPLICATION ──────────────────────────────────────────────────────────────
-def normalize_event_key(e: NormalizedEvent) -> Tuple[str, str, str]:
-    title = (e.title or "").strip().lower()
-    url = (e.ticket_url or "").split("?")[0]
-    date = (e.date or "").split("T")[0]
-
-    if title.endswith(" (21+)"):
-        title = title.replace(" (21+)", "")
-
-    return title, url, date
+# ─── DEDUPE ACROSS SAME SOURCE ONLY ────────────────────────────────────────────
+def dedupe(events: List[NormalizedEvent]) -> List[NormalizedEvent]:
+    """
+    Remove duplicates within each source, based on (source, title, date).
+    Keeps the first occurrence of each.
+    """
+    seen = set()
+    out: List[NormalizedEvent] = []
+    for e in events:
+        key = (
+            e.source,
+            (e.title or "").strip().lower(),
+            e.date  # ISO string; includes time if present
+        )
+        if key not in seen:
+            seen.add(key)
+            out.append(e)
+    return out
 
 # ─── PRICE PARSING ─────────────────────────────────────────────────────────────
 def parse_price(price_str: str) -> float:
+    """
+    Convert price string like "$10 - $20" to float(min).
+    """
     try:
         return float(price_str.replace("$", "").split(" - ")[0])
     except:
@@ -56,28 +73,25 @@ def event_matches(
     radius: float,
     filter_date: str
 ) -> bool:
-    # Price
+    # Price filter
     price_val = parse_price(event.price or "")
     if not (min_price <= price_val <= max_price):
         return False
 
-    # Distance
-    if event.latitude and event.longitude:
+    # Distance filter
+    if event.latitude is not None and event.longitude is not None:
         try:
-            dist = geodesic(
-                user_coords,
-                (float(event.latitude), float(event.longitude))
-            ).miles
+            dist = geodesic(user_coords, (event.latitude, event.longitude)).miles
             if dist > radius:
                 return False
         except:
             return False
 
-    # Date
+    # Date filter
     if filter_date:
         try:
             user_d = datetime.strptime(filter_date, "%Y-%m-%d").date()
-            evt_d = datetime.strptime(event.date.split('T')[0], "%Y-%m-%d").date()
+            evt_d = datetime.fromisoformat(event.date.split('T')[0]).date()
             if user_d != evt_d:
                 return False
         except:
@@ -87,30 +101,23 @@ def event_matches(
 
 # ─── SORTING ───────────────────────────────────────────────────────────────────
 def sort_events(events: List[NormalizedEvent], sort_by: str) -> List[NormalizedEvent]:
-    if "price" in sort_by:
+    """
+    Sort events by price or by datetime (default).  Price sorting honors 'desc'.
+    """
+    if "price" in sort_by.lower():
         reverse = "desc" in sort_by.lower()
         return sorted(events, key=lambda e: parse_price(e.price or ""), reverse=reverse)
-    return sorted(events, key=lambda e: (e.title or "").lower())
 
+    # Default: sort by event.date ISO string or parse into datetime
+    def _key(e: NormalizedEvent):
+        iso = e.date or ""
+        try:
+            return datetime.fromisoformat(iso)
+        except:
+            # fallback to date-only
+            try:
+                return datetime.fromisoformat(iso.split('T')[0] + 'T00:00:00')
+            except:
+                return datetime.min
 
-# ─── DEDUPE HELPER ───────────────────────────────────────────────────────────────
-# ─── DEDUPE ACROSS SAME SOURCE ONLY ────────────────────────────────────────────
-def dedupe(events: List[NormalizedEvent]) -> List[NormalizedEvent]:
-    """
-    Remove duplicates *within* each source.  Keys on (source, title, start_datetime).
-    Keeps the first occurrence of each.
-    """
-    seen = set()
-    out  = []
-    for e in events:
-        key = (
-            e.source,
-            (e.title or "").strip().lower(),
-            # use full datetime if available, else date
-            e.start_datetime or e.date
-            # (e.start_datetime or e.date).split("T")[0] - Switch on to collapse same day shows
-        )
-        if key not in seen:
-            seen.add(key)
-            out.append(e)
-    return out
+    return sorted(events, key=_key)

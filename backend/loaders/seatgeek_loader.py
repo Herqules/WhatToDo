@@ -2,6 +2,8 @@
 
 from typing import List, Any, Dict
 from datetime import datetime
+import re
+
 from backend.config.settings import (
     SEATGEEK_API_URL,
     SEATGEEK_CLIENT_ID,
@@ -10,6 +12,7 @@ from backend.config.settings import (
 from backend.models.event import NormalizedEvent
 from backend.utils.http import async_get
 from backend.utils.env import get_coordinates_for_city
+
 
 async def fetch_seatgeek_events(
     location: str,
@@ -22,6 +25,8 @@ async def fetch_seatgeek_events(
       - price to a string (empty if unavailable)
       - date in YYYY-MM-DD
       - start_time in h:mm AM/PM (empty if unavailable)
+      - strips HTML from descriptions
+      - deduplicates events within SeatGeek results
     Returns [] on any failure.
     """
     # 1) Geocode the city
@@ -51,10 +56,11 @@ async def fetch_seatgeek_events(
 
     events_raw = data.get("events", [])
     normalized: List[NormalizedEvent] = []
+    seen_keys = set()
 
     for item in events_raw:
         try:
-            # — Price (always emit a string) —
+            # — Price formatting —
             stats = item.get("stats", {})
             low = stats.get("lowest_price")
             high = stats.get("highest_price")
@@ -65,17 +71,19 @@ async def fetch_seatgeek_events(
             else:
                 price_str = "Varies by seating/ticket tier"
 
-            # — Date & Time (always emit strings) —
-            dt_local = item.get("datetime_local", "")
+            # — Date & Time —
+            iso_ts = item.get("datetime_local") or item.get("datetime_utc") or ""
             date_part = ""
             time_part = ""
-            if dt_local:
+            if iso_ts:
                 try:
-                    dt = datetime.fromisoformat(dt_local)
+                    dt = datetime.fromisoformat(iso_ts)
                     date_part = dt.strftime("%Y-%m-%d")
-                    time_part = dt.strftime("%-I:%M %p")  # e.g. "7:30 PM"
+                    raw_time = dt.strftime("%-I:%M %p")
+                    # Hide placeholder midnight
+                    time_part = "" if raw_time == "12:00 AM" else raw_time
                 except ValueError:
-                    parts = dt_local.split("T")
+                    parts = iso_ts.split("T", 1)
                     date_part = parts[0]
                     time_part = parts[1] if len(parts) > 1 else ""
 
@@ -85,17 +93,34 @@ async def fetch_seatgeek_events(
             lat_v = venue.get("location", {}).get("lat")
             lon_v = venue.get("location", {}).get("lon")
 
+            # — Description cleaning —
+            raw_desc = item.get("description") or ""
+            desc_clean = re.sub(r"<[^>]+>", "", raw_desc).strip()
+            description = desc_clean if desc_clean else "No description available."
+
+            # — Deduplication key —
+            dedupe_key = (
+                item.get("title", "").strip().lower(),
+                iso_ts,
+                loc_name.strip().lower()
+            )
+            if dedupe_key in seen_keys:
+                continue
+            seen_keys.add(dedupe_key)
+
             normalized.append(NormalizedEvent(
                 title=item.get("title", "No Title"),
-                description=item.get("description") or "No description available.",
+                description=description,
                 location=loc_name,
                 price=price_str,
                 date=date_part,
+                start_date=date_part,
                 start_time=time_part,
-                ticket_url=item.get("url", ""),
+                start_datetime=iso_ts,
+                ticket_url=item.get("url", "") or "",
                 source="SeatGeek",
-                latitude=str(lat_v) if lat_v is not None else None,
-                longitude=str(lon_v) if lon_v is not None else None,
+                latitude=lat_v,
+                longitude=lon_v,
             ))
         except Exception as err:
             print(f"⚠️ Skipping malformed SeatGeek event: {err}")

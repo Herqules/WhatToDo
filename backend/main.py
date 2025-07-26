@@ -43,26 +43,21 @@ async def get_all_events(
     min_price: float = 0,
     max_price: float = 1500,
     radius: float = 100,
-    sort_by: str = "title",
+    sort_by: str = "",
     date: str = ""
 ):
     # 1) Geocode ONCE
     coords = await get_coordinates_for_city(city)
     if not coords:
         raise HTTPException(400, "Unable to resolve city to coordinates")
-    lat, lon = coords
-
-    # 2) Build keywords for SeatGeek & Ticketmaster
-    keywords = get_keywords(interest)
-
-    # 3) Schedule SeatGeek + Ticketmaster per keyword
-    tasks = []
-    for kw in keywords:
-        tasks.append(fetch_seatgeek_events(city, kw))
-        tasks.append(fetch_ticketmaster_events(city, kw))
+    lat, lon = coords    
 
     # 5) Fire them all
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    results = await asyncio.gather(
+        fetch_seatgeek_events(city, interest),
+        fetch_ticketmaster_events(city, interest),
+        return_exceptions=True
+    )
 
     # 6) Flatten + log failures
     combined: List[NormalizedEvent] = []
