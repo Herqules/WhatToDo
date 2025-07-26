@@ -174,6 +174,8 @@ async def fetch_ticketmaster_events(
                 accepted_payment     = accepted_payment,
                 parking_detail       = parking_detail,
                 price                = price,
+                price_min=mn if mn is not None else None,
+                price_max=mx if mx is not None else None,
                 ticket_url           = url,
                 source               = "Ticketmaster",
                 date                 = date_part,

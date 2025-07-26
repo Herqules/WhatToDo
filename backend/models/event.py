@@ -17,6 +17,9 @@ class NormalizedEvent(BaseModel):
     venue_type: Optional[str] = None
 
     price: str
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
+    
     ticket_url: str
     source: str
 

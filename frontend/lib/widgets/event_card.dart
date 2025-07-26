@@ -236,7 +236,7 @@ class _EventCardState extends State<EventCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'More Info',
+          e.title,
           style: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w600,
