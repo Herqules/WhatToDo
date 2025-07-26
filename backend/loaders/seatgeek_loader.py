@@ -87,11 +87,23 @@ async def fetch_seatgeek_events(
                     date_part = parts[0]
                     time_part = parts[1] if len(parts) > 1 else ""
 
-            # — Venue location —
-            venue = item.get("venue", {})
-            loc_name = venue.get("display_location", "")
-            lat_v = venue.get("location", {}).get("lat")
-            lon_v = venue.get("location", {}).get("lon")
+            # — Venue details —
+            venue         = item.get("venue", {}) or {}
+            loc_name      = venue.get("display_location", "")
+            # exact venue name
+            venue_name    = venue.get("name") or None
+            # street + extended address
+            street        = venue.get("address")           or None
+            extended      = venue.get("extended_address")  or None
+            if street and extended:
+                full_address = f"{street}, {extended}"
+            else:
+                full_address = extended or street
+            # event type from SeatGeek (e.g. “theater”)
+            venue_type    = item.get("type") or None
+            # coords
+            lat_v         = venue.get("location", {}).get("lat")
+            lon_v         = venue.get("location", {}).get("lon")            
 
             # — Description cleaning —
             raw_desc = item.get("description") or ""
@@ -109,9 +121,13 @@ async def fetch_seatgeek_events(
             seen_keys.add(dedupe_key)
 
             normalized.append(NormalizedEvent(
-                title=item.get("title", "No Title"),
-                description=description,
-                location=loc_name,
+                title               = item.get("title", "No Title"),
+                description         = item.get("description") or "No description available.",
+                location            = loc_name,
+                venue_name          = venue_name,
+                venue_address       = street,
+                venue_full_address  = full_address,
+                venue_type          = venue_type,
                 price=price_str,
                 date=date_part,
                 start_date=date_part,
@@ -119,8 +135,8 @@ async def fetch_seatgeek_events(
                 start_datetime=iso_ts,
                 ticket_url=item.get("url", "") or "",
                 source="SeatGeek",
-                latitude=lat_v,
-                longitude=lon_v,
+                latitude       = lat_v,
+                longitude      = lon_v,
             ))
         except Exception as err:
             print(f"⚠️ Skipping malformed SeatGeek event: {err}")
