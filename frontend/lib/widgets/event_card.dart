@@ -36,6 +36,28 @@ class _EventCardState extends State<EventCard> {
     }
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _showBack = !_showBack),
+      child: Card(
+        elevation: 3,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: AnimatedCrossFade(
+            firstChild: _buildFront(),
+            secondChild: _buildBack(),
+            crossFadeState:
+                _showBack ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 300),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFront() {
     final e = widget.event;
     String? dateTimeLabel;
@@ -43,8 +65,7 @@ class _EventCardState extends State<EventCard> {
       dateTimeLabel = _formatDateWithTime(e.startDatetime);
     } else if (e.date.isNotEmpty) {
       try {
-        final d = DateTime.parse(e.date);
-        dateTimeLabel = DateFormat('MM/dd/yy').format(d);
+        dateTimeLabel = DateFormat('MM/dd/yy').format(DateTime.parse(e.date));
       } catch (_) {
         dateTimeLabel = e.date;
       }
@@ -54,7 +75,7 @@ class _EventCardState extends State<EventCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title + datetime
+        // ── Title + date/time ────────────────────────────
         Row(
           children: [
             Expanded(
@@ -78,7 +99,8 @@ class _EventCardState extends State<EventCard> {
           ],
         ),
         const SizedBox(height: 8),
-        // City
+
+        // ── Location ─────────────────────────────────────
         Text(
           e.location,
           style: GoogleFonts.poppins(
@@ -86,7 +108,8 @@ class _EventCardState extends State<EventCard> {
             color: Colors.grey[700],
           ),
         ),
-        // Venue name / address / type
+
+        // ── Venue details ─────────────────────────────────
         if (e.venueName != null) ...[
           const SizedBox(height: 4),
           Text(
@@ -110,7 +133,7 @@ class _EventCardState extends State<EventCard> {
         if (e.venueType != null) ...[
           const SizedBox(height: 2),
           Text(
-            'Venue type: ${e.venueType!}',
+            'Type: ${e.venueType!}',
             style: GoogleFonts.poppins(
               fontSize: 12,
               fontStyle: FontStyle.italic,
@@ -118,8 +141,9 @@ class _EventCardState extends State<EventCard> {
             ),
           ),
         ],
+
         const SizedBox(height: 8),
-        // Price
+        // ── Price ────────────────────────────────────────
         Text(
           'Price: ${e.price}',
           style: GoogleFonts.poppins(
@@ -127,8 +151,9 @@ class _EventCardState extends State<EventCard> {
             fontWeight: FontWeight.w500,
           ),
         ),
+
         const SizedBox(height: 8),
-        // Description or hint
+        // ── Description or hint ──────────────────────────
         if (hasDescription)
           Text(
             e.description,
@@ -142,11 +167,12 @@ class _EventCardState extends State<EventCard> {
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontStyle: FontStyle.italic,
-              color: Colors.grey.shade600,
+              color: Colors.grey[600],
             ),
           ),
+
         const SizedBox(height: 8),
-        // Source badge
+        // ── Source badge ─────────────────────────────────
         Align(
           alignment: Alignment.centerRight,
           child: Chip(
@@ -160,8 +186,9 @@ class _EventCardState extends State<EventCard> {
             backgroundColor: _getSourceColor(e.source).withOpacity(0.15),
           ),
         ),
+
         const SizedBox(height: 4),
-        // View Tickets
+        // ── View Tickets button ──────────────────────────
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
@@ -181,35 +208,28 @@ class _EventCardState extends State<EventCard> {
 
   Widget _buildBack() {
     final e = widget.event;
-    final infoRows = <Widget>[];
+    final widgets = <Widget>[];
 
     if (e.category != null) {
-      infoRows.add(_infoLine('Category', e.category!));
+      widgets.add(_infoTile(Icons.category, 'Category', e.category!));
     }
     if (e.venuePhone != null) {
-      infoRows.add(_infoLine('Phone', e.venuePhone!));
+      widgets.add(_infoTile(Icons.phone, 'Phone', e.venuePhone!));
     }
     if (e.acceptedPayment != null) {
-      infoRows.add(_infoLine('Payment', e.acceptedPayment!));
+      widgets.add(_infoTile(Icons.payment, 'Payment', e.acceptedPayment!));
     }
     if (e.parkingDetail != null) {
-      infoRows.add(_infoLine('Parking', e.parkingDetail!));
+      widgets.add(_infoTile(Icons.local_parking, 'Parking', e.parkingDetail!));
     }
-    // fallback
-    if (infoRows.isEmpty) {
-      infoRows.add(
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Text(
-            'No additional info available.',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontStyle: FontStyle.italic,
-              color: Colors.grey[600],
-            ),
-          ),
-        ),
-      );
+
+    // graceful fallback to something we know exists
+    if (widgets.isEmpty) {
+      if (e.venueType != null) {
+        widgets.add(_infoTile(Icons.info, 'Type', e.venueType!));
+      } else {
+        widgets.add(_infoTile(Icons.info_outline, 'Source', e.source));
+      }
     }
 
     return Column(
@@ -223,58 +243,35 @@ class _EventCardState extends State<EventCard> {
           ),
         ),
         const Divider(),
-        ...infoRows,
+        const SizedBox(height: 4),
+        ...widgets,
       ],
     );
   }
 
-  Widget _infoLine(String label, String value) {
+  Widget _infoTile(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: RichText(
-        text: TextSpan(
-          style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            TextSpan(text: value),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => setState(() => _showBack = !_showBack),
-      child: Card(
-        elevation: 3,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: AnimatedCrossFade(
-            firstChild: _buildFront(),
-            secondChild: _buildBack(),
-            crossFadeState: _showBack
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 300),
-            layoutBuilder:
-                (f, fKey, s, sKey) => Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned(key: fKey, child: f),
-                Positioned(key: sKey, child: s),
-              ],
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Colors.deepPurple.shade400),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  TextSpan(text: value),
+                ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
