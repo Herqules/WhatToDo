@@ -97,6 +97,39 @@ class EventCard extends StatelessWidget {
               ),
             ),
 
+            // ── Venue details ─────────────────────────────────
+            if (event.venueName != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                event.venueName!,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+            if (event.venueFullAddress != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                event.venueFullAddress!,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+            if (event.venueType != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Venue type: ${event.venueType!}',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 8),
 
             // ── Price ────────────────────────────────────────
