@@ -18,8 +18,9 @@ class _EventCardState extends State<EventCard> {
   bool _showBack = false;
 
   Future<void> _launchUrl() async {
-    if (widget.event.ticketUrl.isEmpty) return;
-    final uri = Uri.tryParse(widget.event.ticketUrl);
+    final url = widget.event.ticketUrl;
+    if (url.isEmpty) return;
+    final uri = Uri.tryParse(url);
     if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
@@ -49,8 +50,9 @@ class _EventCardState extends State<EventCard> {
           child: AnimatedCrossFade(
             firstChild: _buildFront(),
             secondChild: _buildBack(),
-            crossFadeState:
-                _showBack ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState: _showBack
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             duration: const Duration(milliseconds: 300),
           ),
         ),
@@ -75,7 +77,6 @@ class _EventCardState extends State<EventCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Title + date/time ────────────────────────────
         Row(
           children: [
             Expanded(
@@ -99,35 +100,22 @@ class _EventCardState extends State<EventCard> {
           ],
         ),
         const SizedBox(height: 8),
-
-        // ── Location ─────────────────────────────────────
         Text(
           e.location,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            color: Colors.grey[700],
-          ),
+          style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
         ),
-
-        // ── Venue details ─────────────────────────────────
         if (e.venueName != null) ...[
           const SizedBox(height: 4),
           Text(
             e.venueName!,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
           ),
         ],
         if (e.venueFullAddress != null) ...[
           const SizedBox(height: 2),
           Text(
             e.venueFullAddress!,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              color: Colors.grey[600],
-            ),
+            style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
           ),
         ],
         if (e.venueType != null) ...[
@@ -141,19 +129,12 @@ class _EventCardState extends State<EventCard> {
             ),
           ),
         ],
-
         const SizedBox(height: 8),
-        // ── Price ────────────────────────────────────────
         Text(
-          'Price: ${e.price}',
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          'Price: ${widget.event.price}',
+          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
         ),
-
         const SizedBox(height: 8),
-        // ── Description or hint ──────────────────────────
         if (hasDescription)
           Text(
             e.description,
@@ -170,35 +151,25 @@ class _EventCardState extends State<EventCard> {
               color: Colors.grey[600],
             ),
           ),
-
         const SizedBox(height: 8),
-        // ── Source badge ─────────────────────────────────
         Align(
           alignment: Alignment.centerRight,
           child: Chip(
             label: Text(
               e.source,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: _getSourceColor(e.source),
-              ),
+              style: GoogleFonts.poppins(fontSize: 12, color: _getSourceColor(e.source)),
             ),
             backgroundColor: _getSourceColor(e.source).withOpacity(0.15),
           ),
         ),
-
         const SizedBox(height: 4),
-        // ── View Tickets button ──────────────────────────
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: _launchUrl,
             child: Text(
               'View Tickets',
-              style: GoogleFonts.poppins(
-                color: Colors.deepPurple,
-                fontWeight: FontWeight.w600,
-              ),
+              style: GoogleFonts.poppins(color: Colors.deepPurple, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -210,37 +181,37 @@ class _EventCardState extends State<EventCard> {
     final e = widget.event;
     final widgets = <Widget>[];
 
-    if (e.category != null) {
-      widgets.add(_infoTile(Icons.category, 'Category', e.category!));
-    }
-    if (e.venuePhone != null) {
-      widgets.add(_infoTile(Icons.phone, 'Phone', e.venuePhone!));
-    }
-    if (e.acceptedPayment != null) {
-      widgets.add(_infoTile(Icons.payment, 'Payment', e.acceptedPayment!));
-    }
-    if (e.parkingDetail != null) {
-      widgets.add(_infoTile(Icons.local_parking, 'Parking', e.parkingDetail!));
-    }
+    if (e.category != null) widgets.add(_infoTile(Icons.category, 'Category', e.category!));
+    if (e.venuePhone != null) widgets.add(_infoTile(Icons.phone, 'Phone', e.venuePhone!));
+    if (e.acceptedPayment != null) widgets.add(_infoTile(Icons.payment, 'Payment', e.acceptedPayment!));
+    if (e.parkingDetail != null) widgets.add(_infoTile(Icons.local_parking, 'Parking', e.parkingDetail!));
 
-    // graceful fallback to something we know exists
-    if (widgets.isEmpty) {
-      if (e.venueType != null) {
-        widgets.add(_infoTile(Icons.info, 'Type', e.venueType!));
-      } else {
-        widgets.add(_infoTile(Icons.info_outline, 'Source', e.source));
-      }
+      // ── FALLBACK: if we have fewer than 4, pull in useful guaranteed info ──
+    const minLines = 4;
+    final fallback = <Widget>[
+     _infoTile(Icons.start, 'Start', e.startTime),
+      if (e.startDate.isNotEmpty)
+      if (e.venueFullAddress != null)
+        _infoTile(Icons.location_on, 'Address', e.venueFullAddress!),
+      // 4️⃣ always valid T&C
+      _infoTile(
+        Icons.rule,
+        'Terms',
+        'Subject to venue policies',
+      ),
+    ];
+    // pull from fallback until we have 4 total
+    while (widgets.length < minLines && fallback.isNotEmpty) {
+      widgets.add(fallback.removeAt(0));
     }
+    
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           e.title,
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const Divider(),
         const SizedBox(height: 4),
@@ -262,10 +233,7 @@ class _EventCardState extends State<EventCard> {
               text: TextSpan(
                 style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
                 children: [
-                  TextSpan(
-                    text: '$label: ',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
+                  TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
                   TextSpan(text: value),
                 ],
               ),
@@ -279,13 +247,9 @@ class _EventCardState extends State<EventCard> {
 
 Color _getSourceColor(String source) {
   switch (source.toLowerCase()) {
-    case 'seatgeek':
-      return Colors.orange;
-    case 'ticketmaster':
-      return Colors.redAccent;
-    case 'eventbrite':
-      return Colors.blue;
-    default:
-      return Colors.black;
+    case 'seatgeek': return Colors.orange;
+    case 'ticketmaster': return Colors.redAccent;
+    case 'eventbrite': return Colors.blue;
+    default: return Colors.black;
   }
 }
