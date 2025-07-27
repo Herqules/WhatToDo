@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/event.dart';
+import 'package:html_unescape/html_unescape.dart';
 import 'package:intl/intl.dart';
 
 class EventCard extends StatefulWidget {
@@ -15,6 +16,7 @@ class EventCard extends StatefulWidget {
 }
 
 class _EventCardState extends State<EventCard> {
+  final _unescaper = HtmlUnescape();
   bool _showBack = false;
 
   Future<void> _launchUrl() async {
@@ -36,6 +38,16 @@ class _EventCardState extends State<EventCard> {
       return iso;
     }
   }
+
+  String _cleanDescription(String raw) {
+  var s = HtmlUnescape().convert(raw.trim());
+  // remove non‑breaking spaces plus stray C2
+  s = s.replaceAll('\u00A0', ' ').replaceAll('\u00C2', '');
+  // collapse runs of whitespace
+  s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return s;
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -118,40 +130,39 @@ class _EventCardState extends State<EventCard> {
             style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
           ),
         ],
-        if (e.venueType != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            'Type: ${e.venueType!}',
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontStyle: FontStyle.italic,
-              color: Colors.grey[500],
-            ),
-          ),
-        ],
-        const SizedBox(height: 8),
+//        if (e.venueType != null) ...[
+//          const SizedBox(height: 2),
+//          Text(
+//            'Type: ${e.venueType!}',
+//            style: GoogleFonts.poppins(
+//              fontSize: 12,
+//              fontStyle: FontStyle.italic,
+//              color: Colors.grey[500],
+//            ),
+//          ),
+//        ],
+//        const SizedBox(height: 8),
         Text(
           'Price: ${widget.event.price}',
           style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
+        // Show cleaned description or fallback text
         if (hasDescription)
           Text(
-            e.description,
-            maxLines: 2,
+            _cleanDescription(e.description),
+            style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
+            maxLines: 3,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(fontSize: 14),
           )
         else
           Text(
-            'More details on the ticket site →',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontStyle: FontStyle.italic,
-              color: Colors.grey[600],
-            ),
+            'More details available on the ticket site.',
+            style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
           ),
+          
         const SizedBox(height: 8),
+
         Align(
           alignment: Alignment.centerRight,
           child: Chip(
@@ -178,47 +189,88 @@ class _EventCardState extends State<EventCard> {
   }
 
   Widget _buildBack() {
-    final e = widget.event;
-    final widgets = <Widget>[];
+  final e = widget.event;
+  final widgets = <Widget>[];
+  final seen = <String>{};
 
-    if (e.category != null) widgets.add(_infoTile(Icons.category, 'Category', e.category!));
-    if (e.venuePhone != null) widgets.add(_infoTile(Icons.phone, 'Phone', e.venuePhone!));
-    if (e.acceptedPayment != null) widgets.add(_infoTile(Icons.payment, 'Payment', e.acceptedPayment!));
-    if (e.parkingDetail != null) widgets.add(_infoTile(Icons.local_parking, 'Parking', e.parkingDetail!));
-
-      // ── FALLBACK: if we have fewer than 4, pull in useful guaranteed info ──
-    const minLines = 4;
-    final fallback = <Widget>[
-     _infoTile(Icons.start, 'Start', e.startTime),
-      if (e.startDate.isNotEmpty)
-      if (e.venueFullAddress != null)
-        _infoTile(Icons.location_on, 'Address', e.venueFullAddress!),
-      // 4️⃣ always valid T&C
-      _infoTile(
-        Icons.rule,
-        'Terms',
-        'Subject to venue policies',
-      ),
-    ];
-    // pull from fallback until we have 4 total
-    while (widgets.length < minLines && fallback.isNotEmpty) {
-      widgets.add(fallback.removeAt(0));
+  void addTile(String key, Widget tile) {
+    if (!seen.contains(key)) {
+      widgets.add(tile);
+      seen.add(key);
     }
-    
+  }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          e.title,
-          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const Divider(),
-        const SizedBox(height: 4),
-        ...widgets,
-      ],
+  // 1) Real fields
+  if (e.category?.isNotEmpty == true) {
+    addTile(
+      'Category',
+      _infoTile(Icons.category, 'Category', e.category!),
     );
   }
+  if (e.venuePhone?.isNotEmpty == true) {
+    addTile(
+      'Phone',
+      _infoTile(Icons.phone, 'Phone', e.venuePhone!),
+    );
+  }
+  if (e.acceptedPayment?.isNotEmpty == true) {
+    addTile(
+      'Payment',
+      _infoTile(Icons.payment, 'Payment', e.acceptedPayment!),
+    );
+  }
+  if (e.parkingDetail?.isNotEmpty == true) {
+    addTile(
+      'Parking',
+      _infoTile(Icons.local_parking, 'Parking', e.parkingDetail!),
+    );
+  }
+  if (e.venueType?.isNotEmpty == true) {
+    addTile(
+      'Venue Type',
+      _infoTile(Icons.store, 'Venue Type', e.venueType!),
+    );
+  }
+
+  // 2) Fallbacks, only if non-null and not already shown
+  const minLines = 4;
+  if (widgets.length < minLines && e.venueFullAddress?.isNotEmpty == true) {
+    addTile(
+      'Address',
+      _infoTile(Icons.location_on, 'Address', e.venueFullAddress!),
+    );
+  }
+  if (widgets.length < minLines && e.category?.isNotEmpty == true) {
+    // e.g. maybe you want to repeat category if nothing else — but seen set prevents dup
+    addTile(
+      'Category',
+      _infoTile(Icons.category, 'Category', e.category!),
+    );
+  }
+  // (you can add more fallback slots here, but guard with isNotEmpty)
+
+  // 3) If we STILL have < 4, you might choose a very rare fallback:
+  if (widgets.length < minLines) {
+    addTile(
+      'More Info',
+      _infoTile(Icons.info, 'More Info', 'Click "View tickets" for full details'),
+    );
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        e.title,
+        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+      const Divider(),
+      const SizedBox(height: 4),
+      ...widgets,
+    ],
+  );
+}
+
 
   Widget _infoTile(IconData icon, String label, String value) {
     return Padding(

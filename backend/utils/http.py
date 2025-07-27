@@ -24,7 +24,7 @@ async def async_get(
                 return response.json()
         except httpx.HTTPError as exc:
             if attempt == retries:
-                raise
+                raise RuntimeError(f"GET {url} failed after {retries} attempts: {exc}")
             backoff = 2 ** attempt
             await asyncio.sleep(backoff)
 

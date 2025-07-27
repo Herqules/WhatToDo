@@ -3,18 +3,19 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/event.dart';
+import '../config.dart';
 
 class EventService {
-  static const _baseUrl = 'http://127.0.0.1:8000';
-
   /// Fetches events from the unified `/events/all` endpoint
   static Future<List<Event>> fetchAllEvents({
     required String city,
     required String date,
   }) async {
+    // now using kApiBaseUrl from config.dart
     final uri = Uri.parse(
-      '$_baseUrl/events/all'
+      '$kApiBaseUrl/events/all'
       '?city=${Uri.encodeComponent(city)}'
+      '&date=${Uri.encodeComponent(date)}'
     );
     final res = await http.get(uri);
     if (res.statusCode != 200) {
@@ -29,7 +30,7 @@ class EventService {
     required String city,
   }) async {
     final uri = Uri.parse(
-      '$_baseUrl/events/seatgeek'
+      '$kApiBaseUrl/events/seatgeek'
       '?city=${Uri.encodeComponent(city)}'
     );
     final res = await http.get(uri);
@@ -41,31 +42,32 @@ class EventService {
   }
 
   /// Fetch only Eventbrite events.
-static Future<List<Event>> fetchEventbriteEvents({
-  required String city,
-  String? date,
-}) async {
-  final params = <String>[
-    'city=${Uri.encodeComponent(city)}',
-    if (date != null && date.isNotEmpty) 'date=${Uri.encodeComponent(date)}',
-  ].join('&');
+  static Future<List<Event>> fetchEventbriteEvents({
+    required String city,
+    String? date,
+  }) async {
+    final params = <String>[
+      'city=${Uri.encodeComponent(city)}',
+      if (date != null && date.isNotEmpty) 'date=${Uri.encodeComponent(date)}',
+    ].join('&');
 
-  final uri = Uri.parse('$_baseUrl/events/eventbrite?$params');
-  final res = await http.get(uri);
-  if (res.statusCode != 200) {
-    throw Exception('Failed to load Eventbrite events (${res.statusCode})');
+    final uri = Uri.parse(
+      '$kApiBaseUrl/events/eventbrite?$params'
+    );
+    final res = await http.get(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load Eventbrite events (${res.statusCode})');
+    }
+    final data = json.decode(res.body) as List;
+    return data.map((j) => Event.fromJson(j)).toList();
   }
-  final data = json.decode(res.body) as List;
-  return data.map((j) => Event.fromJson(j)).toList();
-}
-
 
   /// Fetch only Ticketmaster events
   static Future<List<Event>> fetchTicketmasterEvents({
     required String city,
   }) async {
     final uri = Uri.parse(
-      '$_baseUrl/events/ticketmaster'
+      '$kApiBaseUrl/events/ticketmaster'
       '?city=${Uri.encodeComponent(city)}'
     );
     final res = await http.get(uri);

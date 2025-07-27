@@ -36,13 +36,17 @@ async def fetch_seatgeek_events(
         return []
     lat, lon = coords
 
+    query = query.strip()
+    if len(query) > 100:
+        query = query[:100]  # Truncate long search strings
+
     # 2) Build API params
     params: Dict[str, Any] = {
         "client_id": SEATGEEK_CLIENT_ID,
         "client_secret": SEATGEEK_CLIENT_SECRET,
         "lat": lat,
         "lon": lon,
-        "range": "50mi",
+        "range": "50mi", # "range": f"{range_miles}mi"
         "q": query,
         "per_page": per_page,
     }
@@ -50,9 +54,13 @@ async def fetch_seatgeek_events(
     # 3) Fetch with retries
     try:
         data = await async_get(SEATGEEK_API_URL, params=params)
+        if not isinstance(data, dict):
+            print("⚠️ SeatGeek: unexpected response structure")
+            return []
     except Exception as e:
         print(f"⚠️ SeatGeek API error: {e}")
         return []
+
 
     events_raw = data.get("events", [])
     normalized: List[NormalizedEvent] = []
@@ -162,5 +170,7 @@ async def fetch_seatgeek_events(
             ))
         except Exception as err:
             print(f"⚠️ Skipping malformed SeatGeek event: {err}")
+            continue
+
 
     return normalized

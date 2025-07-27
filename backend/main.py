@@ -46,6 +46,17 @@ async def get_all_events(
         raise HTTPException(400, "Unable to resolve city to coordinates")
     lat, lon = coords
 
+    interest = interest.strip()
+    sort_by = sort_by.strip().lower()
+
+    # Sanitize sort_by
+    if sort_by not in {"", "price", "title"}:
+        raise HTTPException(400, f"Unsupported sort_by: {sort_by}")
+
+    # Ensure radius is within reasonable bounds
+    if radius < 0 or radius > 1000:
+        raise HTTPException(400, "Radius must be between 0 and 1000 miles")
+
     # 2) Fetch from each source exactly once, passing the raw interest string
     results = await asyncio.gather(
         fetch_seatgeek_events(city, interest),

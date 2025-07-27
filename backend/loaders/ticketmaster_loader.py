@@ -7,6 +7,8 @@ import html
 from typing import List, Optional
 import httpx
 from datetime import datetime as dt
+from backend.utils.http import async_get
+
 
 from backend.models.event import NormalizedEvent
 
@@ -48,6 +50,10 @@ async def fetch_ticketmaster_events(
         logger.warning("Ticketmaster API key missing; skipping loader.")
         return []
 
+    query = query.strip()
+    if len(query) > 100:
+        query = query[:100]
+
     params = {
         "apikey": TICKETMASTER_API_KEY,
         "city": city,
@@ -57,17 +63,12 @@ async def fetch_ticketmaster_events(
 
     # 1) Fetch raw JSON
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            logger.info("Ticketmaster ▶ q=%r city=%r size=%d", query, city, size)
-            resp = await client.get(BASE_URL, params=params)
-            resp.raise_for_status()
-            data = resp.json()
-    except httpx.HTTPStatusError as e:
-        logger.error("Ticketmaster HTTP %d: %s", e.response.status_code, e.response.text)
-        return []
+        logger.info("Ticketmaster ▶ q=%r city=%r size=%d", query, city, size)
+        data = await async_get(BASE_URL, params=params)
     except Exception as e:
-        logger.exception("Unexpected Ticketmaster error: %s", e)
+        logger.error("Ticketmaster API failure: %s", e)
         return []
+
 
     raw_events = data.get("_embedded", {}).get("events", [])
     normalized: List[NormalizedEvent] = []
@@ -99,8 +100,11 @@ async def fetch_ticketmaster_events(
             # — Venue & coords —
             venue = (e.get("_embedded", {}).get("venues") or [{}])[0]
             loc = venue.get("location") or {}
-            latitude = float(loc.get("latitude")) if loc.get("latitude") else None
-            longitude = float(loc.get("longitude")) if loc.get("longitude") else None
+            try:
+                latitude = float(loc.get("latitude")) if loc.get("latitude") else None
+                longitude = float(loc.get("longitude")) if loc.get("longitude") else None
+            except ValueError:
+                latitude = longitude = None
 
             # — Core venue fields —
             venue_name = venue.get("name")

@@ -36,7 +36,7 @@ class _EventSearchScreenState extends State<EventSearchScreen> {
   /// Fetches location suggestions from OpenStreetMap Nominatim
   Future<List<String>> _getLocationSuggestions(String pattern) async {
     final uri = Uri.parse(
-      'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(pattern)}&format=json&limit=5',
+      'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(pattern)}&format=json&limit=5&countrycodes=us',
     );
     final res = await http.get(uri, headers: {'User-Agent': 'WTD-App'});
     if (res.statusCode != 200) return [];
