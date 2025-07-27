@@ -3,10 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../models/event.dart';
 import 'package:html_unescape/html_unescape.dart';
 import 'package:intl/intl.dart';
-import 'widgets_helpers.dart';
+import '../models/event.dart';
+import '../widgets/widgets_helpers.dart';
 
 class EventCard extends StatefulWidget {
   final Event event;
@@ -34,22 +34,20 @@ class _EventCardState extends State<EventCard> {
       final dt = DateTime.parse(iso);
       final dateStr = DateFormat('MM/dd/yy').format(dt);
       final timeStr = DateFormat('h:mm a').format(dt);
-      return '$dateStr — $timeStr';
+      return '$dateStr · $timeStr';
     } catch (_) {
       return iso;
     }
   }
 
   String _cleanDescription(String raw) {
-  var s = HtmlUnescape().convert(raw.trim());
-  // remove non‑breaking spaces plus stray C2
-  s = s.replaceAll('\u00A0', ' ').replaceAll('\u00C2', '');
-  // collapse runs of whitespace
-  s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
-  return s;
+    var s = HtmlUnescape().convert(raw.trim());
+    s = s.replaceAll('\u00A0', ' ').replaceAll('\u00C2', '');
+    s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return s;
   }
 
-String _clean(String? input) {
+  String _clean(String? input) {
   if (input == null || input.trim().isEmpty) return '';
 
   // 1) replace underscores/hyphens with spaces
@@ -79,12 +77,14 @@ String _clean(String? input) {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return InkWell(
       onTap: () => setState(() => _showBack = !_showBack),
+      borderRadius: BorderRadius.circular(16),
       child: Card(
-        elevation: 3,
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.antiAlias,
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: AnimatedCrossFade(
@@ -93,7 +93,7 @@ String _clean(String? input) {
             crossFadeState: _showBack
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 300),
+            duration: const Duration(milliseconds: 350),
           ),
         ),
       ),
@@ -117,189 +117,203 @@ String _clean(String? input) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Title & Price Row
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: Text(
                 e.title,
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (dateTimeLabel != null)
-              Text(
-                dateTimeLabel,
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Price: ${e.price}',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w600,
                   color: Colors.deepPurple.shade700,
                 ),
               ),
+            ),
           ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          e.location,
-          style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
-        ),
-        if (e.venueName != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            e.venueName!,
-            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
+        const SizedBox(height: 12),
+
+        // Date & Location
+        if (dateTimeLabel != null)
+          Row(
+            children: [
+              Icon(Icons.calendar_today, size: 16, color: Colors.deepPurple.shade400),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  dateTimeLabel,
+                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-        ],
-        if (e.venueFullAddress != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            e.venueFullAddress!,
-            style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
-          ),
-        ],
-//        if (e.venueType != null) ...[
-//          const SizedBox(height: 2),
-//          Text(
-//            'Type: ${e.venueType!}',
-//            style: GoogleFonts.poppins(
-//              fontSize: 12,
-//              fontStyle: FontStyle.italic,
-//              color: Colors.grey[500],
-//            ),
-//          ),
-//        ],
-//        const SizedBox(height: 8),
-        Text(
-          'Price: ${widget.event.price}',
-          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Icon(Icons.place, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                e.location,
+                style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        // Show cleaned description or fallback text
-        if (hasDescription)
+
+        // Description
+        if (hasDescription) ...[
+          const SizedBox(height: 12),
           Text(
             _cleanDescription(e.description),
             style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
-          )
-        else
-          Text(
-            'More details available on the ticket site.',
-            style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
           ),
-          
-        const SizedBox(height: 8),
+        ],
 
-        Align(
-          alignment: Alignment.centerRight,
-          child: Chip(
-            label: Text(
-              e.source,
-              style: GoogleFonts.poppins(fontSize: 12, color: _getSourceColor(e.source)),
+        const SizedBox(height: 16),
+
+        // Source Chip & View Tickets
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Chip(
+              label: Text(
+                e.source,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _getSourceColor(e.source),
+                ),
+              ),
+              backgroundColor: _getSourceColor(e.source).withOpacity(0.15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            backgroundColor: _getSourceColor(e.source).withOpacity(0.15),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: _launchUrl,
-            child: Text(
-              'View Tickets',
-              style: GoogleFonts.poppins(color: Colors.deepPurple, fontWeight: FontWeight.w600),
+            ElevatedButton(
+              onPressed: _launchUrl,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 2,
+              ),
+              child: Text(
+                'View Tickets',
+                style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
             ),
-          ),
+          ],
         ),
       ],
     );
   }
 
-    Widget _buildBack() {
-  final e = widget.event;
-  final tiles = <Widget>[];
-  final seen = <String>{};
+  Widget _buildBack() {
+    final e = widget.event;
+    final tiles = <Widget>[];
+    final seen = <String>{};
 
-  // helper to add one tile, if not already added
-  void add(String key, Widget tile) {
-    if (tiles.length >= 4) return;      // never exceed 4
-    if (!seen.add(key)) return;         // skip if key already seen
-    tiles.add(tile);
-  }
+    void add(String key, Widget tile) {
+      if (tiles.length >= 4) return;
+      if (!seen.add(key)) return;
+      tiles.add(tile);
+    }
 
-  // 1) Primary fields in priority order
-  if (e.category?.isNotEmpty == true) {
-    add('Event Genre', _infoTile(Icons.category, 'Event Genre', _clean(e.category!)));
-  }
-  if (e.venuePhone?.isNotEmpty == true) {
-    add('Phone', _infoTile(Icons.phone, 'Phone', _clean(e.venuePhone!)));
-  }
-  if (e.acceptedPayment?.isNotEmpty == true) {
-    add('Payment', _infoTile(Icons.payment, 'Payment', _clean(e.acceptedPayment!)));
-  }
-  if (e.parkingDetail?.isNotEmpty == true) {
-    add('Parking', _infoTile(Icons.local_parking, 'Parking', e.parkingDetail!));
-  }
-  if (e.venueType?.isNotEmpty == true) {
-    add('Venue Type', _infoTile(Icons.store, 'Venue Type', _clean(e.venueType!)));
-  }
+    if (e.category?.isNotEmpty == true) {
+      add('Genre', _infoTile(Icons.category, 'Genre', _clean(e.category!)));
+    }
+    if (e.venuePhone?.isNotEmpty == true) {
+      add('Phone', _infoTile(Icons.phone, 'Phone', e.venuePhone!));
+    }
+    if (e.acceptedPayment?.isNotEmpty == true) {
+      add('Payment', _infoTile(Icons.payment, 'Payment', e.acceptedPayment!));
+    }
+    if (e.parkingDetail?.isNotEmpty == true) {
+      add('Parking', _infoTile(Icons.local_parking, 'Parking', e.parkingDetail!));
+    }
+    if (e.venueType?.isNotEmpty == true) {
+      add('Venue', _infoTile(Icons.store, 'Venue Type', _clean(e.venueType!)));
+    }
+    if (e.venueFullAddress?.isNotEmpty == true) {
+      add('Address', _infoTile(Icons.location_on, 'Address', e.venueFullAddress!));
+    }
+    if (tiles.length < 4) {
+      add(
+        'More Info',
+        _infoTile(Icons.info, 'More Info', 'Tap “View Tickets” for full details'),
+      );
+    }
 
-  // 2) Secondary fallback
-  if (e.venueFullAddress?.isNotEmpty == true) {
-    add('Address', _infoTile(Icons.location_on, 'Address', _clean(e.venueFullAddress!)));
-  }
-
-  // 3) Final “more info” fallback if we still haven’t filled 4
-if (tiles.length < 4) {
-  add(
-    'More Info',
-    _infoTile(
-      Icons.info,
-      'More Info',
-      'Click “View tickets” on the front for full details',
-    ),
-  );
-}
-
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        e.title,
-        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
-      const Divider(),
-      const SizedBox(height: 4),
-      ...tiles,
-    ],
-  );
-}
-
-
-
-  Widget _infoTile(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: Colors.deepPurple.shade400),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
-                children: [
-                  TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
-                  TextSpan(text: value),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                e.title,
+                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            IconButton(
+              icon: Icon(Icons.close, color: Colors.grey[600]),
+              onPressed: () => setState(() => _showBack = false),
+            ),
+          ],
+        ),
+        const Divider(),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 16,
+          runSpacing: 12,
+          children: tiles,
+        ),
+      ],
+    );
+  }
+
+  Widget _infoTile(IconData icon, String label, String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Colors.deepPurple.shade400),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              Text(value, style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87)),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -309,6 +323,6 @@ Color _getSourceColor(String source) {
     case 'seatgeek': return Colors.orange;
     case 'ticketmaster': return Colors.redAccent;
     case 'eventbrite': return Colors.blue;
-    default: return Colors.black;
+    default: return Colors.grey.shade800;
   }
 }
