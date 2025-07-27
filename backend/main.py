@@ -36,7 +36,7 @@ async def get_all_events(
     interest: str = "",
     min_price: float = 0,
     max_price: float = 1500,
-    radius: float = 100,
+    radius: float = 45,
     sort_by: str = "",
     date: str = ""
 ):
@@ -83,7 +83,9 @@ async def get_all_events(
         if event_matches(e, coords, min_price, max_price, radius, date)
     ]
 
-    # 6) Sort & return
+    # 6) If no explicit sort requested, sort by start_datetime ascending:
+    if not sort_by:
+        filtered.sort(key=lambda e: e.start_datetime or "")
     return sort_events(filtered, sort_by)
 
 @app.get("/events/seatgeek", response_model=List[NormalizedEvent])
@@ -95,7 +97,7 @@ async def get_seatgeek_events(city: str, interest: str = ""):
 async def get_ticketmaster_events(
     city: str,
     interest: str = "",
-    size: int = 10
+    size: int = 20
 ) -> List[NormalizedEvent]:
     """
     Fetch Ticketmaster events by city + keyword (interest).

@@ -17,7 +17,7 @@ from backend.utils.env import get_coordinates_for_city
 async def fetch_seatgeek_events(
     location: str,
     query: str = "",
-    per_page: int = 10,
+    per_page: int = 20,
 ) -> List[NormalizedEvent]:
     """
     Fetch events from SeatGeek using lat/lon + range, with retry/back-off.

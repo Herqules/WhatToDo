@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/event.dart';
 import 'package:html_unescape/html_unescape.dart';
 import 'package:intl/intl.dart';
+import 'widgets_helpers.dart';
 
 class EventCard extends StatefulWidget {
   final Event event;
@@ -48,6 +49,33 @@ class _EventCardState extends State<EventCard> {
   return s;
   }
 
+String _clean(String? input) {
+  if (input == null || input.trim().isEmpty) return '';
+
+  // 1) replace underscores/hyphens with spaces
+  var s = input.replaceAll(RegExp(r'[_\-]+'), ' ');
+
+  // 2) unescape HTML entities
+  s = HtmlUnescape().convert(s);
+
+  // 3) remove non-ASCII garbage
+  s = s.replaceAll(RegExp(r'[^\x00-\x7F]'), '');
+
+  // 4) collapse multiple spaces
+  s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+  // 5) title-case every word
+  s = s
+      .split(' ')
+      .map((word) =>
+          word.isEmpty
+              ? ''
+              : word[0].toUpperCase() + word.substring(1).toLowerCase()
+      )
+      .join(' ');
+
+  return s;
+}
 
   @override
   Widget build(BuildContext context) {
@@ -188,74 +216,52 @@ class _EventCardState extends State<EventCard> {
     );
   }
 
-  Widget _buildBack() {
+    Widget _buildBack() {
   final e = widget.event;
-  final widgets = <Widget>[];
+  final tiles = <Widget>[];
   final seen = <String>{};
 
-  void addTile(String key, Widget tile) {
-    if (!seen.contains(key)) {
-      widgets.add(tile);
-      seen.add(key);
-    }
+  // helper to add one tile, if not already added
+  void add(String key, Widget tile) {
+    if (tiles.length >= 4) return;      // never exceed 4
+    if (!seen.add(key)) return;         // skip if key already seen
+    tiles.add(tile);
   }
 
-  // 1) Real fields
+  // 1) Primary fields in priority order
   if (e.category?.isNotEmpty == true) {
-    addTile(
-      'Category',
-      _infoTile(Icons.category, 'Category', e.category!),
-    );
+    add('Event Genre', _infoTile(Icons.category, 'Event Genre', _clean(e.category!)));
   }
   if (e.venuePhone?.isNotEmpty == true) {
-    addTile(
-      'Phone',
-      _infoTile(Icons.phone, 'Phone', e.venuePhone!),
-    );
+    add('Phone', _infoTile(Icons.phone, 'Phone', _clean(e.venuePhone!)));
   }
   if (e.acceptedPayment?.isNotEmpty == true) {
-    addTile(
-      'Payment',
-      _infoTile(Icons.payment, 'Payment', e.acceptedPayment!),
-    );
+    add('Payment', _infoTile(Icons.payment, 'Payment', _clean(e.acceptedPayment!)));
   }
   if (e.parkingDetail?.isNotEmpty == true) {
-    addTile(
-      'Parking',
-      _infoTile(Icons.local_parking, 'Parking', e.parkingDetail!),
-    );
+    add('Parking', _infoTile(Icons.local_parking, 'Parking', e.parkingDetail!));
   }
   if (e.venueType?.isNotEmpty == true) {
-    addTile(
-      'Venue Type',
-      _infoTile(Icons.store, 'Venue Type', e.venueType!),
-    );
+    add('Venue Type', _infoTile(Icons.store, 'Venue Type', _clean(e.venueType!)));
   }
 
-  // 2) Fallbacks, only if non-null and not already shown
-  const minLines = 4;
-  if (widgets.length < minLines && e.venueFullAddress?.isNotEmpty == true) {
-    addTile(
-      'Address',
-      _infoTile(Icons.location_on, 'Address', e.venueFullAddress!),
-    );
+  // 2) Secondary fallback
+  if (e.venueFullAddress?.isNotEmpty == true) {
+    add('Address', _infoTile(Icons.location_on, 'Address', _clean(e.venueFullAddress!)));
   }
-  if (widgets.length < minLines && e.category?.isNotEmpty == true) {
-    // e.g. maybe you want to repeat category if nothing else — but seen set prevents dup
-    addTile(
-      'Category',
-      _infoTile(Icons.category, 'Category', e.category!),
-    );
-  }
-  // (you can add more fallback slots here, but guard with isNotEmpty)
 
-  // 3) If we STILL have < 4, you might choose a very rare fallback:
-  if (widgets.length < minLines) {
-    addTile(
+  // 3) Final “more info” fallback if we still haven’t filled 4
+if (tiles.length < 4) {
+  add(
+    'More Info',
+    _infoTile(
+      Icons.info,
       'More Info',
-      _infoTile(Icons.info, 'More Info', 'Click "View tickets" for full details'),
-    );
-  }
+      'Click “View tickets” on the front for full details',
+    ),
+  );
+}
+
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,10 +272,11 @@ class _EventCardState extends State<EventCard> {
       ),
       const Divider(),
       const SizedBox(height: 4),
-      ...widgets,
+      ...tiles,
     ],
   );
 }
+
 
 
   Widget _infoTile(IconData icon, String label, String value) {

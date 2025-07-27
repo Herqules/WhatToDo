@@ -8,6 +8,7 @@ from typing import Tuple, List
 from geopy.distance import geodesic
 from backend.models.event import NormalizedEvent
 
+
 # ─── SYNONYMS ─────────────────────────────────────────────────────────────────
 SYNONYM_MAP = {
     "concerts": "concert",
