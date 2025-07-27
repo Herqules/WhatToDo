@@ -138,14 +138,6 @@ setState(() => _loading = true);
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'WhatToDo',
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.deepPurpleAccent,
-                      ),
-                    ),
                   ],
                 ),
               ),
